@@ -1,0 +1,18 @@
+{
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Darwin",
+  "pythonPath": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+  "extraPaths": [
+    "/Users/anshulyadav/Desktop/THINGS/hsbc/backend",
+    "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages"
+  ],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": [
+        "/Users/anshulyadav/Desktop/THINGS/hsbc/backend",
+        "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local database and vector stores
+*.db
+sql_app.db
+chroma_db/
+uploaded_docs/
+
+# Logs
+*.log
+backend.log
+frontend.log
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Node modules
+node_modules/
+.next/
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code specific
+.vscode/
+
+# Static and temporary folders
+backend/uploaded_docs/
+frontend/out/
+/tmp/

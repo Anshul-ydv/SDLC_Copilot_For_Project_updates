@@ -1,0 +1,138 @@
+"TC No.","System Name","Module / Feature","BRD Reference","Pre-Requisites","Test Scenario / Objective","Test Type","Steps Description","Expected Result","Post Conditions","Data Required (if applicable)"
+"---","---","---","---","---","---","---","---","---","---","---"
+"**1. UI Test Cases**","---","---","---","---","---","---","---","---","---","---"
+"NV_UI_001","nVEST","Login Page","BRD-NV-ULIP-001 | Sec 2.1","User is not logged in. nVEST URL is accessible.","Verify the UI elements on the Login page.","UI","1. Navigate to the nVEST application URL.
+2. Observe the login screen.","The login page should display:
+- Canara HSBC Life Insurance Logo
+- Username field
+- Password field (masked)
+- 'Login' button
+- 'Forgot Password?' link
+- Any promotional banners or notices as per design specs.
+All elements should be correctly aligned and legible.","User remains on the login page.","N/A"
+"NV_UI_002","nVEST","Customer Details","BRD-NV-ULIP-001 | Sec 4.2","User is logged in and is on the 'New Proposal' journey.","Verify mandatory field indicators (*) in the Proposer Details section.","UI","1. Navigate to the Proposer Details section.
+2. Observe all input fields.","An asterisk (*) symbol should be visible next to the labels of all mandatory fields (e.g., First Name, Last Name, DOB, Mobile Number, PAN, etc.).","User is on the Proposer Details screen.","N/A"
+"NV_UI_003","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.5","User is on the Benefit Illustration (BI) generation screen.","Verify the layout and responsiveness of the BI calculator.","UI","1. Enter valid details for Age, Gender, Premium, and Term.
+2. Click 'Calculate'.
+3. Observe the generated illustration graph and tables.
+4. Resize the browser window (if applicable).","The illustration graph should render correctly. The summary table (showing premiums, fund values @4% and @8%) should be clearly formatted. The layout should adjust gracefully to different screen sizes without breaking.","BI is displayed on the screen.","Age: 30, Gender: Male, Premium: 50000, Term: 20"
+"NV_UI_004","nVEST","Document Upload","BRD-NV-ULIP-001 | Sec 6.1","User is on the Document Upload screen.","Verify the UI of the document upload component.","UI","1. Navigate to the Document Upload section.
+2. Observe the upload area.","The UI should clearly show:
+- A 'Browse' or 'Drag & Drop' area.
+- Accepted file formats (e.g., PDF, JPG, PNG).
+- Maximum file size limit (e.g., 5 MB).
+- A clear 'Upload' button.","User is on the Document Upload screen.","N/A"
+"NV_UI_005","nVEST","Common","BRD-NV-ULIP-001 | Sec 2.0","User is logged in and navigating the application.","Verify the display of loading spinners during API calls.","UI","1. Perform an action that triggers a backend call (e.g., fetch customer details by mobile number, calculate premium).
+2. Observe the screen.","A loading spinner or a progress indicator should be displayed while the data is being fetched. The UI should be non-interactive during this time to prevent duplicate actions.","The action completes and the spinner disappears.","Mobile Number: 9876543210"
+"---","---","---","---","---","---","---","---","---","---","---"
+"**2. Functional Test Cases**","---","---","---","---","---","---","---","---","---","---"
+"NV_FUNC_001","nVEST","Login","BRD-NV-ULIP-001 | Sec 2.2","User has valid login credentials.","Verify successful login with valid credentials.","Positive","1. Navigate to the nVEST URL.
+2. Enter a valid Username.
+3. Enter the corresponding valid Password.
+4. Click the 'Login' button.","The user should be authenticated successfully and redirected to the nVEST dashboard/home page.","User session is created. User is on the dashboard.","Valid agent/staff credentials."
+"NV_FUNC_002","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.6","User is on the BI screen.","Verify premium calculation for a standard case.","Functional","1. Select the product (e.g., 'Invest 4G').
+2. Enter Proposer Age: 35.
+3. Enter Sum Assured: 50,00,000.
+4. Enter Policy Term (PT): 20 years.
+5. Enter Premium Payment Term (PPT): 10 years.
+6. Select Premium Frequency: Annual.
+7. Click 'Calculate'.","The system should calculate and display the correct annual premium as per the product's premium rate tables. The BI should be generated.","BI is displayed.","Age: 35, SA: 50L, PT: 20, PPT: 10"
+"NV_FUNC_003","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 4.4","User is on the Nominee Details section.","Verify the functionality of adding a nominee.","Functional","1. In the Nominee section, click 'Add Nominee'.
+2. Fill in all mandatory details (Name, DOB, Relationship, % Share).
+3. Set '% Share' to 100.
+4. Click 'Save'.","The nominee should be added successfully and displayed in a list/table on the screen. The total share should be 100%.","Nominee record is saved in the proposal data.","Nominee Name: Test Nominee, DOB: 01/01/1990, Relationship: Spouse, Share: 100"
+"NV_FUNC_004","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 4.3","User is a Staff member with a valid employee ID.","Verify the application of Staff Discount.","Functional","1. Log in with a Staff user account.
+2. In the Proposer Details section, check the 'Is Staff?' checkbox.
+3. Enter the Employee ID.
+4. Proceed to the premium calculation/summary page.","The system should validate the Employee ID. A pre-defined staff discount (e.g., 2%) should be applied to the premium, and the discounted amount should be clearly displayed.","Discounted premium is shown.","Valid Staff Employee ID."
+"NV_FUNC_005","nVEST","Document Upload","BRD-NV-ULIP-001 | Sec 6.2","User is on the Document Upload screen.","Verify successful upload of a valid document.","Functional","1. Click 'Browse' and select a valid file (e.g., a PDF < 5MB).
+2. Click 'Upload'.","The file should be uploaded successfully. A success message should be displayed, and the file name should appear in the list of uploaded documents with a 'Delete' or 'View' icon.","Document is linked to the application number in the backend/DMS.","A valid PDF or JPG file."
+"---","---","---","---","---","---","---","---","---","---","---"
+"**3. Negative Test Cases**","---","---","---","---","---","---","---","---","---","---"
+"NV_NEG_001","nVEST","Login","BRD-NV-ULIP-001 | Sec 2.2","User has invalid credentials.","Verify login failure with an invalid password.","Negative","1. Navigate to the nVEST URL.
+2. Enter a valid Username.
+3. Enter an invalid Password.
+4. Click the 'Login' button.","An error message 'Invalid username or password' should be displayed. The user should remain on the login page.","User is not logged in.","Valid username, invalid password."
+"NV_NEG_002","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 4.2","User is on the Proposer Details screen.","Verify validation on entering an invalid mobile number.","Negative","1. Navigate to the Proposer Details section.
+2. Enter '12345' in the Mobile Number field.
+3. Tab out of the field.","An inline error message 'Please enter a valid 10-digit mobile number' should be displayed. The 'Proceed' button should be disabled.","Form cannot be submitted.","Mobile: 12345"
+"NV_NEG_003","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 4.2","User is on the Proposer Details screen.","Verify validation on entering an invalid PAN card format.","Negative","1. Navigate to the Proposer Details section.
+2. Enter 'ABCDE1234' (invalid format) in the PAN field.
+3. Tab out of the field.","An inline error message 'Invalid PAN format' should be displayed.","Form cannot be submitted.","PAN: ABCDE1234"
+"NV_NEG_004","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 4.4","User is on the Nominee Details screen.","Verify validation for nominee share percentage exceeding 100%.","Negative","1. Add one nominee with a share of 80%.
+2. Add a second nominee.
+3. Enter a share of 30% for the second nominee.
+4. Click 'Save'.","An error message 'Total nominee share cannot exceed 100%' should be displayed. The second nominee should not be saved.","Total share remains 80%.","Nominee 1 Share: 80%, Nominee 2 Share: 30%"
+"NV_NEG_005","nVEST","Document Upload","BRD-NV-ULIP-001 | Sec 6.1","User is on the Document Upload screen.","Verify system behavior on attempting to upload a file larger than the allowed limit.","Negative","1. Click 'Browse' and select a file larger than 5 MB.
+2. Click 'Upload'.","An error message 'File size exceeds the maximum limit of 5 MB' should be displayed. The file should not be uploaded.","No file is uploaded.","A file > 5MB."
+"NV_NEG_006","nVEST","Document Upload","BRD-NV-ULIP-001 | Sec 6.1","User is on the Document Upload screen.","Verify system behavior on attempting to upload an unsupported file type.","Negative","1. Click 'Browse' and select a file with an unsupported extension (e.g., .exe, .zip).
+2. Click 'Upload'.","An error message 'Invalid file type. Please upload PDF, JPG, or PNG files only' should be displayed. The file should not be uploaded.","No file is uploaded.","A .zip file."
+"---","---","---","---","---","---","---","---","---","---","---"
+"**4. Boundary/Edge Case Test Cases**","---","---","---","---","---","---","---","---","---","---"
+"NV_BND_001","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.2","User is on the BI screen. Product entry age is 18-65.","Verify system behavior for entry age just below the minimum limit.","Boundary","1. Enter Proposer DOB such that age is 17 years, 11 months.
+2. Proceed to the product selection/premium calculation screen.","The system should display an error 'Entry age must be between 18 and 65 years'. The user should not be able to proceed with BI generation.","BI not generated.","DOB for Age 17."
+"NV_BND_002","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.2","User is on the BI screen. Product entry age is 18-65.","Verify system behavior for entry age at the exact minimum limit.","Boundary","1. Enter Proposer DOB such that age is exactly 18 years.
+2. Proceed to the premium calculation screen.","The system should accept the age and allow the user to proceed with BI generation.","BI can be generated.","DOB for Age 18."
+"NV_BND_003","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.2","User is on the BI screen. Product entry age is 18-65.","Verify system behavior for entry age at the exact maximum limit.","Boundary","1. Enter Proposer DOB such that age is exactly 65 years.
+2. Proceed to the premium calculation screen.","The system should accept the age and allow the user to proceed with BI generation.","BI can be generated.","DOB for Age 65."
+"NV_BND_004","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.2","User is on the BI screen. Product entry age is 18-65.","Verify system behavior for entry age just above the maximum limit.","Boundary","1. Enter Proposer DOB such that age is 65 years and 1 day.
+2. Proceed to the premium calculation screen.","The system should display an error 'Entry age must be between 18 and 65 years'. The user should not be able to proceed.","BI not generated.","DOB for Age 65+."
+"NV_BND_005","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.3","User is on the BI screen. Max maturity age is 75.","Verify validation for a combination of Entry Age and Policy Term that exceeds max maturity age.","Boundary","1. Enter Entry Age: 60.
+2. Select Policy Term: 20 years. (Maturity age would be 80).
+3. Click 'Calculate'.","An error message 'Maturity age cannot exceed 75 years. Please select a shorter policy term.' should be displayed.","BI not generated.","Age: 60, PT: 20"
+"NV_BND_006","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.4","User is on the BI screen. Min Sum Assured is 5,00,000.","Verify system behavior for Sum Assured at the minimum limit.","Boundary","1. Enter Sum Assured: 5,00,000.
+2. Click 'Calculate'.","The system should accept the Sum Assured and calculate the premium correctly.","BI is generated.","SA: 5,00,000"
+"---","---","---","---","---","---","---","---","---","---","---"
+"**5. Data Validation / Rule Based Test Cases**","---","---","---","---","---","---","---","---","---","---"
+"NV_RULE_001","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 4.5","Life Assured is a minor (e.g., age 10).","Verify that if the Life Assured is a minor, the Proposer must be a major and have a valid relationship.","Data","1. In the LA details, enter DOB to make the age 10.
+2. In the Proposer details, enter DOB to make the age 17.
+3. Try to proceed.","An error message 'Proposer must be a major (18 years or older) if the Life Assured is a minor' should be displayed.","Cannot proceed.","LA Age: 10, Proposer Age: 17"
+"NV_RULE_002","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 5.2","High Sum Assured is selected.","Verify that the system automatically flags the case for medicals based on the Sum Assured and Age band. (Pre-screening rule)","Data","1. Enter Age: 55.
+2. Enter Sum Assured: 75,00,000 (Assuming this is above the non-medical limit for this age).
+3. Proceed to the summary/next step.","A message or indicator should appear stating 'Medical examination will be required for this proposal'. The list of required medical tests should be displayed.","Case is flagged for medicals.","Age: 55, SA: 75L"
+"NV_RULE_003","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 5.1","User answers 'Yes' to a health question.","Verify that answering 'Yes' to a critical health question (e.g., 'Do you have diabetes?') triggers a requirement for more details.","Data","1. Navigate to the Health Declaration section.
+2. For the question 'Do you suffer from or have you ever suffered from Diabetes?', select 'Yes'.","A new section or a text box should appear, prompting the user to provide more details (e.g., 'Date of diagnosis', 'Current treatment', 'Medication details'). This field should be mandatory.","Additional details are required.","Health Question: Yes"
+"NV_RULE_004","nVEST","Illustration Generator","BRD-NV-ULIP-001 | Sec 3.3","User selects PPT and PT.","Verify the business rule: Premium Payment Term (PPT) must be less than or equal to the Policy Term (PT).","Data","1. Select Policy Term (PT): 15 years.
+2. Attempt to select a Premium Payment Term (PPT) of 20 years.","The dropdown/input for PPT should not allow a value greater than 15. If entered manually, an error 'PPT cannot be greater than Policy Term' should be shown.","Invalid combination is prevented.","PT: 15, PPT: 20"
+"---","---","---","---","---","---","---","---","---","---","---"
+"**6. Integration Test Cases**","---","---","---","---","---","---","---","---","---","---"
+"NV_INT_001","nVEST","Customer Search","BRD-NV-ULIP-001 | Sec 3.1","CRM system is up and available.","Verify successful customer data retrieval from CRM via mobile number.","Integration","1. On the 'New Proposal' screen, enter a mobile number that exists in the CRM.
+2. Click the 'Search' or 'Fetch' button.","An API call should be made to the CRM system. The customer's basic details (Name, DOB, etc.) should be auto-populated in the nVEST form fields.","Form fields are pre-filled.","Existing CRM customer mobile number."
+"NV_INT_002","nVEST","Proposal Form","BRD-NV-ULIP-001 | Sec 4.2","PAN validation service (e.g., NSDL) is available.","Verify PAN card validation and name auto-population.","Integration","1. Enter a valid PAN number in the Proposer Details section.
+2. Tab out of the field.","An API call should be made to the PAN validation service. Upon successful validation, the 'Name as per PAN' should be auto-populated and the field should become non-editable. A green tick should appear.","Name is auto-populated from PAN service.","Valid PAN of an individual."
+"NV_INT_003","nVEST","Submission","BRD-NV-ULIP-001 | Sec 7.1","Unified/Underwriting system is available.","Verify that on successful submission, the proposal data is sent to the Unified/UW system.","Integration","1. Complete the entire proposal form in nVEST.
+2. Make the payment successfully.
+3. Click the final 'Submit' button.","A success message with the Application Number should be displayed in nVEST. An XML/JSON payload with all the captured data should be successfully sent to the designated API endpoint of the Unified/UW system.","A new case should be created in the Unified/UW system with the same Application Number.","Completed proposal data."
+"NV_INT_004","nVEST","Payment","BRD-NV-ULIP-001 | Sec 7.2","Payment Gateway (PG) is available.","Verify successful redirection to the Payment Gateway with the correct amount and details.","Integration","1. Complete the proposal form and proceed to the payment step.
+2. Select an online payment method (e.g., Credit Card).
+3. Click 'Proceed to Pay'.","The user should be redirected to the Payment Gateway's page. The amount displayed on the PG page must match the final premium calculated in nVEST. The application number should be passed as a reference.","User is on the PG page.","Application Number, Premium Amount."
+"NV_INT_005","nVEST","Payment","BRD-NV-ULIP-001 | Sec 7.3","User is on the PG page.","Verify the response handling after a successful payment.","Integration","1. On the PG page, complete the payment successfully.
+2. Be redirected back to the nVEST application.","nVEST should receive a success response from the PG. A 'Payment Successful' page should be displayed to the user, showing the transaction ID and application number.","Payment status is updated to 'Success' in the nVEST/backend database.","Successful payment transaction."
+"---","---","---","---","---","---","---","---","---","---","---"
+"**7. End-to-End (E2E) Scenarios**","---","---","---","---","---","---","---","---","---","---"
+"NV_E2E_001","nVEST -> Unified -> Ingenium","New Business Flow - Standard Case","BRD-NV-ULIP-001","All integrated systems are available.","Verify the E2E journey for a standard, non-medical, major life case with online payment.","E2E","1. Login to nVEST.
+2. Create a new proposal for a 30-year-old male, non-smoker, standard life.
+3. Complete all sections: Proposer, LA, Nominee, Health (all 'No').
+4. Generate BI and confirm.
+5. Upload mandatory KYC docs.
+6. Proceed to payment, select online, and complete payment successfully.
+7. Submit the proposal.","The proposal is submitted successfully from nVEST. A new case is created in the Unified/UW system with status 'Awaiting Scrutiny'. After auto-scrutiny/approval, the case is passed to Ingenium. A policy number is generated in Ingenium and the policy is issued.","Policy is issued and visible in the Policy Admin System (Ingenium).","Standard case data."
+"NV_E2E_002","nVEST -> Unified -> CRM","New Business Flow - Medical Case","BRD-NV-ULIP-001","All integrated systems are available.","Verify the E2E journey for a case that requires medicals.","E2E","1. Login to nVEST.
+2. Create a proposal for a 58-year-old with a high Sum Assured, triggering medicals.
+3. Complete all sections. Note the 'Medicals Required' flag.
+4. Submit the proposal (payment can be online or offline).
+5. Check the Unified/UW system.","The case is created in Unified with a status like 'Awaiting Medicals'. The list of required medicals should be visible. A task/notification should be triggered in the CRM for the operations team to coordinate the medicals.","Case is in 'Awaiting Medicals' state in UW. Task created in CRM.","High SA / Age data."
+"NV_E2E_003","nVEST -> Unified","New Business Flow - Data Entry Error","BRD-NV-ULIP-001","All integrated systems are available.","Verify the E2E journey where a data entry error is found by the underwriter and sent back to the source (nVEST).","E2E","1. Submit a case from nVEST with a mismatch (e.g., name on PAN doc doesn't match entered name).
+2. Login to Unified as an Underwriter.
+3. Review the case and find the discrepancy.
+4. Raise a requirement/send the case back to the source with comments.
+5. Login to nVEST as the original user.","The case should appear in the nVEST user's dashboard under a section like 'Incomplete Proposals' or 'Proposals with Requirements'. The underwriter's comments should be visible. The user should be able to edit the incorrect field and resubmit.","Case status in nVEST is 'Requirement Raised'.","Case with data mismatch."
+"---","---","---","---","---","---","---","---","---","---","---"
+"**8. Exception Handling / Error Scenarios**","---","---","---","---","---","---","---","---","---","---"
+"NV_EXC_001","nVEST","Customer Search","BRD-NV-ULIP-001 | Sec 3.1","CRM API is down or unresponsive.","Verify system behavior when the CRM integration API is down.","Exception","1. On the 'New Proposal' screen, enter a mobile number.
+2. Click the 'Search' or 'Fetch' button.","The system should not crash. After a defined timeout period (e.g., 30 seconds), a user-friendly error message like 'Unable to connect to the customer service at the moment. Please try again later or proceed by entering details manually.' should be displayed.","User can still fill the form manually.","Any mobile number."
+"NV_EXC_002","nVEST","Payment","BRD-NV-ULIP-001 | Sec 7.3","User drops the payment on the PG page.","Verify response handling when the user cancels the transaction on the Payment Gateway page.","Exception","1. Proceed to the PG page.
+2. Click the 'Cancel' or 'Back' button on the PG page to return to nVEST.","nVEST should receive a failure/cancelled response from the PG. A 'Payment Failed or Cancelled' page should be displayed. The user should be given an option to retry the payment.","Payment status is updated to 'Failed' or 'Cancelled'. The proposal remains in a pre-payment state.","N/A"
+"NV_EXC_003","nVEST","General","BRD-NV-ULIP-001 | Sec 2.3","User is filling a long form.","Verify the session timeout functionality.","Exception","1. Login to nVEST and start filling a proposal form.
+2. Leave the system idle for a duration longer than the session timeout limit (e.g., 30 minutes).
+3. Try to perform an action (e.g., click 'Save' or 'Next').","A message 'Your session has expired. Please log in again.' should be displayed. The user should be redirected to the login page. (Bonus: Test if any auto-save functionality exists to recover the data).","User is logged out.","N/A"

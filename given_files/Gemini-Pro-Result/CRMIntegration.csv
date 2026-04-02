@@ -1,0 +1,58 @@
+"TC No.","System Name","Module / Feature","BRD Reference","Pre-Requisites","Test Scenario / Objective","Test Type","Steps Description","Expected Result","Post Conditions","Data Required (if applicable)"
+"CRM_UI_001","CRM","Lead Management","CRM-LEAD-01","User has valid CRM credentials with access to the lead management module.","Verify the layout and fields of the 'Create Lead' screen.","UI","1. Login to CRM.
+2. Navigate to the 'Leads' section.
+3. Click on 'New Lead'.
+4. Observe the screen layout.","All fields as per the BRD specification (e.g., First Name, Last Name, Mobile Number, Email, DOB, PAN, Product Interested In, Lead Source) should be present, correctly labeled, and aligned.","N/A","CRM user credentials."
+"CRM_FUNC_001","CRM","Lead Management","CRM-LEAD-02","A new lead needs to be created.","Verify that a new lead can be created with all mandatory and optional fields.","Positive","1. Login to CRM.
+2. Navigate to 'Leads' -> 'New Lead'.
+3. Fill in all mandatory fields (e.g., First Name, Last Name, Mobile).
+4. Fill in some optional fields (e.g., Email, Address).
+5. Click 'Save'.","A new lead record should be created successfully with a unique Lead ID. The lead status should be 'New'.","New lead record is searchable and visible in the 'All Leads' view.","Lead details (Name, Mobile, etc.)."
+"CRM_NEG_001","CRM","Lead Management","CRM-LEAD-03","'Create Lead' screen is open.","Verify that a lead cannot be created without filling in a mandatory field (e.g., Mobile Number).","Negative","1. Login to CRM.
+2. Navigate to 'Leads' -> 'New Lead'.
+3. Fill in First Name and Last Name but leave 'Mobile Number' blank.
+4. Click 'Save'.","The system should display a field-level validation error message indicating that the Mobile Number is required. The lead should not be created.","No new lead record is created.","Lead details without mobile number."
+"CRM_INT_001","CRM","Integration - Lead to New Business","CRM-NB-INT-01","A lead exists in CRM with 'Interested' status and all required data for proposal creation.","Verify that a lead from CRM can be successfully pushed to the 'Insure' (New Business) system to create a proposal.","Integration","1. In CRM, open a lead record.
+2. Update the lead status to 'Proposal Creation'.
+3. Click a 'Push to NB' or equivalent button.
+4. Note the Lead ID.","The system should display a success message with the Application/Proposal number from the Insure system. A new entry should be created in the Insure system with the lead's data.","Lead status in CRM is updated to 'Proposal in Progress'. Proposal number from Insure system is updated in a corresponding field on the lead record.","Existing CRM Lead ID."
+"INSURE_INT_001","Insure UI","Integration - CRM Data Sync","CRM-NB-INT-02","A lead has been pushed from CRM to Insure.","Verify that customer data from the CRM lead is accurately pre-filled in the Insure proposal form.","Data","1. Login to the Insure portal.
+2. Search for the application number created from the CRM push.
+3. Open the proposal.
+4. Check the personal details, contact details, and product details sections.","The customer's First Name, Last Name, Mobile, Email, DOB, PAN, and selected product details from the CRM lead should be pre-filled and non-editable in the Insure proposal form.","N/A","Application Number from CRM_INT_001."
+"UW_INT_001","Underwriting (UW)","Integration - Policy Status Update","CRM-UW-INT-01","A policy application from CRM is pending underwriting decision in the UW system.","Verify that the policy status is updated in CRM when a decision is made in the UW system.","Integration","1. Login to the Underwriting system.
+2. Search for the application number.
+3. Mark the underwriting decision as 'Approved'.
+4. Save the decision.","The policy status for the corresponding lead/opportunity in CRM should be automatically updated from 'Underwriting' to 'Approved'.","An automated email/SMS notification may be triggered to the customer/agent from CRM.","Application Number."
+"PAS_INT_001","Policy Admin System (Ingenium)","Integration - Policy Issuance","CRM-PAS-INT-01","A policy is approved in the UW system and ready for issuance.","Verify that upon policy issuance in Ingenium, the policy number and status are updated in CRM.","Integration","1. In Ingenium, process the approved application to issue the policy.
+2. A policy number is generated.
+3. Check the corresponding opportunity in CRM.","The CRM opportunity should be updated to 'Policy Issued'. The policy number, policy start date, and premium amount should be populated in the respective fields in CRM.","The opportunity in CRM should be marked as 'Won'.","Application Number."
+"CRM_FUNC_002","CRM","Customer 360 View","CRM-C360-01","A customer has one or more policies issued.","Verify that the Customer 360 view in CRM shows all policies linked to that customer.","Functional","1. Login to CRM.
+2. Search for a customer who has multiple policies.
+3. Open the customer's contact record.
+4. Navigate to the 'Policies' or 'Customer 360' tab.","The screen should display a summary of all policies linked to the customer, including Policy Number, Product Name, Status, Sum Assured, and Premium Amount for each policy.","N/A","Customer with multiple policies."
+"CRM_NEG_002","CRM","Integration - Duplicate Check","CRM-LEAD-04","An existing contact exists in CRM with a specific mobile number.","Verify that creating a new lead with the same mobile number triggers a duplicate warning.","Negative","1. Login to CRM.
+2. Note the mobile number of an existing contact.
+3. Navigate to 'Leads' -> 'New Lead'.
+4. Enter new lead details but use the existing mobile number from step 2.
+5. Click 'Save'.","The system should display a notification or warning message indicating that a duplicate record may exist and provide a link to the existing contact.","N/A","Existing contact's mobile number."
+"CRM_E2E_001","All Systems","End-to-End New Business Flow","CRM-E2E-NB-01","Sales agent has identified a potential customer.","Verify the complete end-to-end flow from lead creation in CRM to policy issuance in Ingenium and status reflection in CRM.","End-to-End","1. Create a new lead in CRM.
+2. Qualify the lead and initiate proposal creation (push to Insure).
+3. Complete the proposal journey in Insure and submit for underwriting.
+4. In the UW system, approve the case.
+5. In Ingenium, issue the policy.
+6. Check the final status in CRM.","The lead should be successfully converted to an opportunity. The opportunity status should reflect the journey (e.g., 'Proposal in Progress', 'Underwriting', 'Approved', 'Policy Issued'). The final policy number and details should be correctly updated in CRM.","Opportunity is closed as 'Won'. Customer record in CRM is updated with the new policy.","New Lead data."
+"CRM_DATA_001","CRM","Data Validation","CRM-VALID-01","User is on the 'Create Lead' screen.","Verify data type and format validation for the 'Email' field.","Data","1. Login to CRM.
+2. Navigate to 'Leads' -> 'New Lead'.
+3. In the 'Email' field, enter an invalid format (e.g., 'test@test', 'test.com').
+4. Try to save the lead.","An error message should be displayed, such as 'Please enter a valid email address'. The data should not be saved.","N/A","Invalid email address formats."
+"UNIFIED_INT_001","Unified","Integration - Partner Portal Lead Sync","CRM-PARTNER-INT-01","A lead is created in the partner portal (Unified).","Verify that a new lead created in the Unified portal is synced to CRM in real-time.","Integration","1. Login to the Unified partner portal.
+2. Create a new lead with all necessary details.
+3. Submit the lead.
+4. Immediately search for the lead in CRM using the mobile number or email.","The lead should be present in CRM with the correct lead source identified as 'Unified Portal'. All data fields should match the entry in the partner portal.","A new lead record is created in CRM.","New lead data for partner portal."
+"NVEST_INT_001","nVEST","Integration - Customer Onboarding","CRM-NVEST-INT-01","A customer is onboarded via the nVEST application.","Verify that customer and policy details from nVEST are correctly created/updated in CRM.","Integration","1. Onboard a new customer and complete a sale through the nVEST application.
+2. Note the customer's PAN and policy details.
+3. Search for the customer in CRM using their PAN or mobile number.","A new contact and a related opportunity/policy record should be created in CRM. The source should be tagged as 'nVEST'. All customer and policy data should be accurate.","Customer and policy records are created/updated in CRM.","New customer and policy data for nVEST."
+"CRM_ERR_001","CRM","Exception Handling","CRM-INT-ERR-01","The Insure (New Business) system is down or unreachable.","Verify the system's behavior when trying to push a lead from CRM to a non-responsive Insure system.","Exception Handling","1. In CRM, open a lead ready for proposal creation.
+2. (Pre-condition: Ensure the Insure system endpoint is down).
+3. Click the 'Push to NB' button.","The system should display a user-friendly error message (e.g., 'The New Business system is currently unavailable. Please try again later.'). The CRM should not crash. A retry mechanism or a failed transaction log should be in place.","The lead status remains unchanged. The failed transaction should be logged for the IT admin.","CRM Lead ID."

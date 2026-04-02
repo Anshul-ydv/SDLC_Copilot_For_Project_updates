@@ -1,0 +1,130 @@
+TC No.,System Name,Module / Feature,BRD Reference,Pre-Requisites,Test Scenario / Objective,Test Type,Steps Description,Expected Result,Post Conditions,Data Required (if applicable)
+"---","---","---","---","---","--- SECTION: Insure UI (Front-End for BI Generation) ---","---","---","---","---","---"
+INS-UI-001,Insure UI,BI Input Screen,BRD-UI-01,User is logged into Insure portal and has access to the BI generation page.,Verify the display and layout of all fields on the BI input screen.,UI,"1. Navigate to the New Business -> Benefit Illustration screen.
+2. Observe the screen layout.",All required fields are present, clearly labeled, and logically grouped: Product Details, Life Assured Details, Policy Details (PT, PPT, SA/Premium), Rider Details, etc. All labels, placeholders, and tooltips are correct.,User can view the BI input form.,User Role: Sales Agent
+INS-UI-002,Insure UI,BI Input Screen,BRD-UI-02,User is on the BI generation page.,Verify that mandatory fields are visually indicated.,UI,"1. Navigate to the BI generation screen.
+2. Check fields like 'Product Name', 'Date of Birth', 'Gender', 'Premium Amount'.",Mandatory fields should be marked with a red asterisk (*) or similar visual indicator.,User can identify mandatory fields.,N/A
+INS-UI-003,Insure UI,BI Input Screen,BRD-VALID-01,User is on the BI generation page.,Verify that the 'Calculate BI' button is disabled until all mandatory fields are filled.,UI,"1. Navigate to the BI generation screen.
+2. Observe the state of the 'Calculate BI' button.
+3. Fill in all mandatory fields one by one.",1. Initially, the 'Calculate BI' button should be disabled.
+2. As the final mandatory field is filled with valid data, the button should become enabled.,The 'Calculate BI' button state changes based on form validity.,N/A
+INS-UI-004,Insure UI,BI Input Screen,BRD-VALID-02,User is on the BI generation page.,Verify client-side validation for the 'Age' field (numeric only).,Negative,"1. Navigate to the BI generation screen.
+2. In the 'Age' or 'Date of Birth' field, attempt to enter alphabetic characters (e.g., 'abc').",The system should not accept non-numeric characters. An inline error message like 'Please enter a valid age/date' should appear.,The invalid data is not accepted.,Input: 'abc'
+INS-UI-005,Insure UI,BI Input Screen,BRD-VALID-03,User is on the BI generation page.,Verify the 'Reset' or 'Clear' button functionality.,Functional,"1. Fill in several fields on the BI input form (e.g., Age, Gender, Premium).
+2. Click the 'Reset' or 'Clear' button.",All fields on the form should be cleared and reset to their default state. The 'Calculate BI' button should become disabled again.,The form is reset to its initial state.,N/A
+"---","---","---","---","---","--- SECTION: nVEST (Core Calculation Engine) ---","---","---","---","---","---"
+NVEST-FUNC-001,nVEST,Premium Calculation,BRD-CALC-01,"Product rules for a standard Endowment plan are configured.
+User has entered valid inputs in Insure UI.",Verify the base premium calculation for an Endowment plan with annual mode.,Functional,"1. In Insure UI, select an Endowment Plan.
+2. Enter details: LA Age: 30, Gender: Male, PT: 20, PPT: 20, Sum Assured: 10,00,000, Mode: Annual.
+3. Click 'Calculate BI'.",The system calculates the correct annual base premium based on the configured premium rate tables for the given parameters. (e.g., If rate is 45.10 per 1000 SA, Premium = (10,00,000/1000) * 45.10 = 45,100).,The calculated premium is displayed on the UI and used for further BI calculations.,Product: Endowment Plan, Age: 30, PT: 20, SA: 10L
+NVEST-FUNC-002,nVEST,Modal Premium Calculation,BRD-CALC-02,"Product rules and modal loading factors are configured.
+User has entered valid inputs.",Verify the calculation of semi-annual premium with modal loading.,Functional,"1. Use the same inputs as NVEST-FUNC-001, but change the Premium Mode to 'Semi-Annual'.
+2. Click 'Calculate BI'.",The system should calculate the semi-annual premium by applying the correct loading factor to the annual premium. (e.g., Annual Premium * 0.52). The result should be displayed.,The calculated semi-annual premium is displayed.,Data: Same as NVEST-FUNC-001, Mode: Semi-Annual
+NVEST-FUNC-003,nVEST,Modal Premium Calculation,BRD-CALC-02,"Product rules and modal loading factors are configured.
+User has entered valid inputs.",Verify the calculation of monthly premium with modal loading.,Functional,"1. Use the same inputs as NVEST-FUNC-001, but change the Premium Mode to 'Monthly'.
+2. Click 'Calculate BI'.",The system should calculate the monthly premium by applying the correct loading factor to the annual premium. (e.g., Annual Premium * 0.088). The result should be displayed.,The calculated monthly premium is displayed.,Data: Same as NVEST-FUNC-001, Mode: Monthly
+NVEST-FUNC-004,nVEST,GST Calculation,BRD-CALC-03,"GST rates are configured in the system (e.g., 4.5% for 1st year, 2.25% for subsequent years).
+User has entered valid inputs.",Verify the total premium calculation including GST for the 1st year.,Functional,"1. Use the same inputs as NVEST-FUNC-001.
+2. Click 'Calculate BI'.
+3. Check the 'Total Premium' value.",The system should calculate the Total Premium correctly. Total Premium = Base Premium * (1 + GST Rate for 1st Year). (e.g., 45,100 * 1.045 = 47,129.5).,The BI document shows the correct breakdown of Base Premium, GST, and Total Premium.,Data: Same as NVEST-FUNC-001
+NVEST-FUNC-005,nVEST,Staff Discount,BRD-CALC-04,"Staff discount percentage is configured (e.g., 2%).
+User has entered valid inputs and selected 'Staff' category.",Verify premium calculation with staff discount applied.,Functional,"1. Use the same inputs as NVEST-FUNC-001.
+2. Check the 'Is Staff?' checkbox.
+3. Click 'Calculate BI'.",The system should apply the staff discount on the base premium before calculating GST. (e.g., Discount = 45,100 * 0.02 = 902. Discounted Premium = 44,198. Total Premium = 44,198 * 1.045 = 46,186.91).,The BI document reflects the discounted premium.,Data: Same as NVEST-FUNC-001, Is Staff: Yes
+NVEST-FUNC-006,nVEST,Benefit Calculation (ULIP),BRD-CALC-05,"ULIP product with fund choices and charges is configured.
+User has entered valid inputs.",Verify the projected Fund Value at the end of Year 1 assuming an 8% growth rate.,Functional,"1. In Insure UI, select a ULIP Plan.
+2. Enter details: Age: 35, PT: 15, PPT: 15, Annual Premium: 1,00,000.
+3. Click 'Calculate BI'.
+4. Check the BI document for the 8% scenario table.",The Fund Value at EOY 1 should be calculated as: (Premium - Premium Allocation Charge) * (1 - Policy Admin Charge) * (1.08) - (Mortality Charges). The value must match manual calculation.,The BI document shows the correct year-on-year fund projection at 8%.,Product: ULIP, Age: 35, Premium: 1L
+NVEST-FUNC-007,nVEST,Benefit Calculation (ULIP),BRD-CALC-06,"ULIP product with fund choices and charges is configured.
+User has entered valid inputs.",Verify the projected Fund Value at the end of Year 1 assuming a 4% growth rate.,Functional,"1. Use the same inputs as NVEST-FUNC-006.
+2. Click 'Calculate BI'.
+3. Check the BI document for the 4% scenario table.",The Fund Value at EOY 1 should be calculated as: (Premium - Premium Allocation Charge) * (1 - Policy Admin Charge) * (1.04) - (Mortality Charges). The value must match manual calculation.,The BI document shows the correct year-on-year fund projection at 4%.,Product: ULIP, Age: 35, Premium: 1L
+NVEST-FUNC-008,nVEST,Benefit Calculation (Endowment),BRD-CALC-07,"Endowment product with guaranteed additions and bonuses is configured.
+User has entered valid inputs.",Verify the Guaranteed Maturity Benefit calculation.,Functional,"1. Use the same inputs as NVEST-FUNC-001.
+2. Click 'Calculate BI'.
+3. Check the 'Guaranteed Benefits' section of the BI document.",The Guaranteed Maturity Benefit should be equal to the Sum Assured. (e.g., 10,00,000). Any guaranteed additions should also be included as per product rules.,The BI document shows the correct guaranteed maturity benefit.,Data: Same as NVEST-FUNC-001
+NVEST-NEG-001,nVEST,Rule Validation,BRD-VALID-04,"Product rules for entry age are configured (e.g., Min: 18, Max: 55).
+User is on the BI input screen.",Verify the system rejects calculations for an age below the minimum entry age.,Negative,"1. In Insure UI, select an Endowment Plan.
+2. Enter details with Age = 17.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The nVEST engine should return an error. The UI should display a clear error message like 'Entry age must be between 18 and 55 years for this product'.,The calculation is blocked and no BI is generated.,Product: Endowment Plan, Age: 17
+NVEST-NEG-002,nVEST,Rule Validation,BRD-VALID-04,"Product rules for entry age are configured (e.g., Min: 18, Max: 55).
+User is on the BI input screen.",Verify the system rejects calculations for an age above the maximum entry age.,Negative,"1. In Insure UI, select an Endowment Plan.
+2. Enter details with Age = 56.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The nVEST engine should return an error. The UI should display a clear error message like 'Entry age must be between 18 and 55 years for this product'.,The calculation is blocked and no BI is generated.,Product: Endowment Plan, Age: 56
+NVEST-NEG-003,nVEST,Rule Validation,BRD-VALID-05,"Product rules for PT/PPT are configured (e.g., for a PT of 20, PPT can be 10, 15, or 20).
+User is on the BI input screen.",Verify the system rejects calculations for an invalid PPT for a given PT.,Negative,"1. In Insure UI, select an Endowment Plan.
+2. Enter PT = 20 and PPT = 25.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The nVEST engine should return an error. The UI should display a clear error message like 'Premium Paying Term cannot be greater than Policy Term'.,The calculation is blocked and no BI is generated.,PT: 20, PPT: 25
+NVEST-NEG-004,nVEST,Rule Validation,BRD-VALID-06,"Product rules for Sum Assured are configured (e.g., Min SA = 2,00,000).
+User is on the BI input screen.",Verify the system rejects calculations for a Sum Assured below the minimum limit.,Negative,"1. In Insure UI, select an Endowment Plan.
+2. Enter Sum Assured = 1,50,000.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The nVEST engine should return an error. The UI should display a clear error message like 'Minimum Sum Assured for this product is 2,00,000'.,The calculation is blocked and no BI is generated.,SA: 1,50,000
+NVEST-BND-001,nVEST,Rule Validation,BRD-VALID-04,"Product rules for entry age are configured (e.g., Min: 18, Max: 55).
+User is on the BI input screen.",Verify calculation at minimum entry age boundary.,Boundary/Edge Case,"1. In Insure UI, select an Endowment Plan.
+2. Enter details with Age = 18.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The system successfully calculates the BI using the premium rates applicable for age 18. No error is thrown.,A valid BI is generated for the minimum entry age.,Product: Endowment Plan, Age: 18
+NVEST-BND-002,nVEST,Rule Validation,BRD-VALID-04,"Product rules for entry age are configured (e.g., Min: 18, Max: 55).
+User is on the BI input screen.",Verify calculation at maximum entry age boundary.,Boundary/Edge Case,"1. In Insure UI, select an Endowment Plan.
+2. Enter details with Age = 55.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The system successfully calculates the BI using the premium rates applicable for age 55. No error is thrown.,A valid BI is generated for the maximum entry age.,Product: Endowment Plan, Age: 55
+NVEST-BND-003,nVEST,Rule Validation,BRD-VALID-07,"Product rules for Sum Assured are configured (e.g., Min SA = 2,00,000, Max SA = 50,00,000 for non-medical).
+User is on the BI input screen.",Verify calculation at maximum non-medical Sum Assured limit.,Boundary/Edge Case,"1. In Insure UI, select an Endowment Plan.
+2. Enter Sum Assured = 50,00,000.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The system successfully calculates the BI. The BI document may or may not contain a note about underwriting, but the calculation should be successful.,A valid BI is generated. The case may be flagged for underwriting in downstream systems.,SA: 50,00,000
+NVEST-BND-004,nVEST,Rule Validation,BRD-VALID-07,"Product rules for Sum Assured are configured (e.g., Max SA = 50,00,000 for non-medical).
+User is on the BI input screen.",Verify calculation just above the maximum non-medical Sum Assured limit.,Boundary/Edge Case,"1. In Insure UI, select an Endowment Plan.
+2. Enter Sum Assured = 50,00,001.
+3. Fill all other mandatory fields.
+4. Click 'Calculate BI'.",The system successfully calculates the BI, but the BI document MUST contain a clear disclaimer like 'Subject to Medical Underwriting'.,A valid BI is generated with a medical underwriting disclaimer.,SA: 50,00,001
+NVEST-DATA-001,nVEST,Data Validation,BRD-DATA-01,User is on the BI input screen.,Verify age calculation logic (Age Nearer Birthday).,Data,"1. Enter DOB such that the age is 30 years and 7 months.
+2. Click 'Calculate BI'.",The system should calculate the age as 31 for premium calculation purposes, as per 'Age Nearer Birthday' rule.,The premium calculated corresponds to the rate for age 31.,DOB: Current Date - 30 years & 7 months
+NVEST-DATA-002,nVEST,Data Validation,BRD-DATA-01,User is on the BI input screen.,Verify age calculation logic (Age Last Birthday).,Data,"1. Enter DOB such that the age is 30 years and 11 months.
+2. Click 'Calculate BI'.",If the rule is 'Age Last Birthday', the system should calculate the age as 30 for premium calculation purposes.,The premium calculated corresponds to the rate for age 30.,DOB: Current Date - 30 years & 11 months
+"---","---","---","---","---","--- SECTION: Integration Test Cases ---","---","---","---","---","---"
+INT-001,Insure UI / nVEST,BI Calculation Request,BRD-INT-01,User has filled all valid data in the Insure UI form.,Verify the request payload sent from Insure UI to the nVEST API.,Integration,"1. Open browser developer tools and monitor network traffic.
+2. Fill the BI form in Insure UI with valid data.
+3. Click 'Calculate BI'.
+4. Inspect the request sent to the nVEST service endpoint.",The request payload should be a well-formed JSON/XML containing all the input parameters with correct keys and values (e.g., ""product_id"": ""ENDW01"", ""age"": 30, ""gender"": ""M"", ""policy_term"": 20).,The nVEST service receives the correct data for processing.,N/A
+INT-002,nVEST / Insure UI,BI Calculation Response,BRD-INT-02,A valid request has been sent to the nVEST API.,Verify the response payload from nVEST is correctly rendered on the Insure UI.,Integration,"1. Trigger a BI calculation from Insure UI.
+2. Inspect the response received from the nVEST service in the browser's developer tools.
+3. Compare the response data with the values displayed on the UI.",The response from nVEST should contain all calculated values (base premium, modal premium, GST, total premium, etc.). The Insure UI should parse this response and display the values in the correct fields on the screen.,The user sees the correct calculated results on the screen before generating the final document.,N/A
+INT-003,nVEST,API Error Handling,BRD-EXCP-01,The nVEST service is temporarily down or unreachable.,Verify the UI behavior when the nVEST API call fails or times out.,Integration,"1. Simulate a network failure for the nVEST API endpoint (using browser tools or by stopping the service).
+2. In Insure UI, fill the form and click 'Calculate BI'.",The UI should not freeze or crash. It should display a user-friendly error message, such as 'Unable to connect to the calculation service. Please try again later.' The 'Calculate BI' button may be re-enabled to allow for a retry.,The system gracefully handles the API failure.,N/A
+INT-004,nVEST / CRM,BI Document Storage,BRD-INT-03,A BI has been successfully generated for a specific lead/customer.,Verify that the generated BI PDF can be saved and linked to the correct customer record in CRM.,Integration,"1. Generate a BI from Insure UI.
+2. On the results screen, click a 'Save to CRM' button.
+3. Provide the lead/opportunity ID.
+4. Log in to CRM and navigate to that lead/opportunity record.",The generated BI PDF should be visible as an attachment or a linked document in the 'Documents' or 'Attachments' section of the lead/opportunity in CRM.,The BI document is successfully archived against the customer record for future reference.,Lead ID from CRM
+"---","---","---","---","---","--- SECTION: End-to-End (E2E) Scenarios ---","---","---","---","---","---"
+E2E-001,All Systems,Happy Path - New Business,BRD-E2E-01,Sales agent is logged in.,Verify the complete E2E flow of generating a BI for a new customer with a standard Endowment plan.,E2E,"1. Login to Insure UI.
+2. Navigate to BI Generation.
+3. Enter new customer details (Age 35, Male, Non-Smoker).
+4. Select Endowment Plan, PT=20, PPT=10, SA=5L, Annual mode.
+5. Click 'Calculate BI'.
+6. Verify the calculated premium on screen.
+7. Click 'Generate PDF'.
+8. Verify the PDF opens and contains correct projections for guaranteed and non-guaranteed (4% & 8%) benefits.
+9. Click 'Save to CRM' and link to a newly created lead.",The entire flow completes without any errors. The premium is calculated correctly. The PDF is generated accurately. The document is successfully saved in CRM against the correct lead record.,A complete and accurate BI is generated and stored, ready for sharing with the customer.,User Role: Sales Agent
+E2E-002,All Systems,ULIP Plan with Riders,BRD-E2E-02,Sales agent is logged in.,Verify the E2E flow for a ULIP plan with an Accidental Death Benefit (ADB) rider.,E2E,"1. Login to Insure UI.
+2. Navigate to BI Generation.
+3. Enter customer details (Age 30, Female).
+4. Select a ULIP Plan, Annual Premium=1L, PT=20, PPT=20.
+5. Select the 'Accidental Death Benefit' rider with a rider SA of 10L.
+6. Click 'Calculate BI'.
+7. Verify the total premium includes the base premium + rider premium + GST.
+8. Click 'Generate PDF'.
+9. Verify the PDF shows the fund value projections and clearly mentions the benefits of the added rider.",The flow completes successfully. The rider premium is correctly added to the total premium. The BI document explicitly details the rider benefits and its associated costs.,A complete BI with rider information is generated.,User Role: Sales Agent
+E2E-003,All Systems,High Sum Assured Case,BRD-E2E-03,Sales agent is logged in.,Verify the E2E flow for a case with a high Sum Assured that requires medical underwriting.,E2E,"1. Login to Insure UI.
+2. Navigate to BI Generation.
+3. Enter customer details (Age 45, Male).
+4. Select a Term Plan with SA = 1.5 Crore.
+5. Fill all other details and click 'Calculate BI'.
+6. Click 'Generate PDF'.
+7. Scrutinize the generated PDF document.",The BI is generated successfully. The PDF document must contain a prominent disclaimer stating that the policy issuance is 'Subject to Medical Underwriting' and the quoted premium is indicative.,A BI with the appropriate underwriting disclaimer is generated, setting correct expectations for the customer.,User Role: Sales Agent
