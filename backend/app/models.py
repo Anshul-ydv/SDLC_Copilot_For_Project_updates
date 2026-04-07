@@ -34,8 +34,10 @@ class Document(Base):
     status = Column(String(20), default="indexed")  # uploaded, indexed, error
     metadata_json = Column(JSON, default=dict)  # extensible metadata
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    session_id = Column(String, ForeignKey("chat_sessions.id"), nullable=True)
 
     uploaded_by_user = relationship("User", back_populates="documents")
+    session = relationship("ChatSession")
 
 
 # ── Chat Session Model 
