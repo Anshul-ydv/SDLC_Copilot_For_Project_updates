@@ -4,13 +4,38 @@ from sqlalchemy.orm import Session
 import shutil
 import os
 from app.services.rag_service import rag_service
+from app.services.feedback_service import get_feedback_service
 from app.database import get_db
-from app.models import Document
+from app.models import Document, DocumentFeedback
+from pydantic import BaseModel
 
 router = APIRouter()
 
 UPLOAD_DIR = "uploaded_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+# ── Pydantic Models for Request/Response
+class FeedbackRequest(BaseModel):
+    """Request model for submitting document feedback."""
+    rating: str  # 'thumbs_up' or 'thumbs_down'
+    feedback_text: str = None  # Optional user feedback
+    doc_type: str = None  # 'FRD' or 'BRD'
+    user_id: str = None
+
+
+class FeedbackResponse(BaseModel):
+    """Response model for feedback."""
+    id: str
+    document_id: str
+    rating: str
+    feedback_text: str = None
+    ai_improvement_suggestions: str = None
+    doc_type: str = None
+    created_at: str = None
+
+
+
 
 
 @router.post("/upload")
@@ -99,4 +124,160 @@ async def delete_document(document_id: str, db: Session = Depends(get_db)):
         return {"status": "success", "message": "Document deleted"}
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Document Feedback Endpoints
+
+@router.post("/{document_id}/feedback")
+async def submit_feedback(
+    document_id: str,
+    feedback: FeedbackRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Submit QA feedback (thumbs up/down) for a document.
+    For thumbs_down, generates AI-powered improvement suggestions.
+    """
+    try:
+        # Verify document exists
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Check if feedback already exists
+        existing_feedback = db.query(DocumentFeedback).filter(
+            DocumentFeedback.document_id == document_id,
+            DocumentFeedback.user_id == feedback.user_id
+        ).first()
+        
+        ai_suggestions = None
+        
+        # Generate AI suggestions if thumbs_down
+        if feedback.rating == "thumbs_down":
+            try:
+                # Read document content for analysis
+                with open(doc.file_path, 'r', encoding='utf-8') as f:
+                    doc_content = f.read()
+            except:
+                doc_content = "Document content could not be read"
+            
+            feedback_service = get_feedback_service()
+            doc_type = feedback.doc_type or "Unknown"
+            
+            ai_suggestions = feedback_service.generate_improvement_suggestions(
+                doc_content,
+                doc_type,
+                feedback.feedback_text or ""
+            )
+        
+        # Update existing feedback or create new
+        if existing_feedback:
+            existing_feedback.rating = feedback.rating
+            existing_feedback.feedback_text = feedback.feedback_text
+            existing_feedback.ai_improvement_suggestions = ai_suggestions
+            existing_feedback.doc_type = feedback.doc_type
+            db.commit()
+            feedback_id = existing_feedback.id
+        else:
+            new_feedback = DocumentFeedback(
+                document_id=document_id,
+                user_id=feedback.user_id,
+                rating=feedback.rating,
+                feedback_text=feedback.feedback_text,
+                ai_improvement_suggestions=ai_suggestions,
+                doc_type=feedback.doc_type or "Unknown"
+            )
+            db.add(new_feedback)
+            db.commit()
+            feedback_id = new_feedback.id
+        
+        return {
+            "status": "success",
+            "message": f"Feedback submitted successfully",
+            "feedback_id": feedback_id,
+            "rating": feedback.rating,
+            "ai_suggestions": ai_suggestions if feedback.rating == "thumbs_down" else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
+
+
+@router.get("/{document_id}/feedback")
+async def get_feedback(document_id: str, db: Session = Depends(get_db)):
+    """Retrieve all feedback for a document."""
+    try:
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        feedbacks = db.query(DocumentFeedback).filter(
+            DocumentFeedback.document_id == document_id
+        ).order_by(DocumentFeedback.created_at.desc()).all()
+        
+        return {
+            "document_id": document_id,
+            "filename": doc.filename,
+            "feedback_count": len(feedbacks),
+            "feedbacks": [
+                {
+                    "id": f.id,
+                    "rating": f.rating,
+                    "feedback_text": f.feedback_text,
+                    "ai_improvement_suggestions": f.ai_improvement_suggestions,
+                    "doc_type": f.doc_type,
+                    "created_at": f.created_at.isoformat() if f.created_at else None
+                }
+                for f in feedbacks
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{document_id}/feedback/summary")
+async def get_feedback_summary(document_id: str, db: Session = Depends(get_db)):
+    """Get a summary of feedback for a document (thumbs up vs thumbs down count)."""
+    try:
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        feedbacks = db.query(DocumentFeedback).filter(
+            DocumentFeedback.document_id == document_id
+        ).all()
+        
+        thumbs_up = sum(1 for f in feedbacks if f.rating == "thumbs_up")
+        thumbs_down = sum(1 for f in feedbacks if f.rating == "thumbs_down")
+        
+        # Get the most recent thumbs_down feedback with suggestions
+        latest_improvement_suggestions = None
+        latest_feedback_with_suggestions = db.query(DocumentFeedback).filter(
+            DocumentFeedback.document_id == document_id,
+            DocumentFeedback.ai_improvement_suggestions.isnot(None)
+        ).order_by(DocumentFeedback.created_at.desc()).first()
+        
+        if latest_feedback_with_suggestions:
+            latest_improvement_suggestions = latest_feedback_with_suggestions.ai_improvement_suggestions
+        
+        return {
+            "document_id": document_id,
+            "filename": doc.filename,
+            "summary": {
+                "thumbs_up": thumbs_up,
+                "thumbs_down": thumbs_down,
+                "total_ratings": thumbs_up + thumbs_down,
+                "quality_score": f"{(thumbs_up / (thumbs_up + thumbs_down) * 100):.1f}%" if (thumbs_up + thumbs_down) > 0 else "No ratings"
+            },
+            "latest_improvement_suggestions": latest_improvement_suggestions
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

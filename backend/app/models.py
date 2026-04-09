@@ -65,3 +65,21 @@ class ChatMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
+
+
+# ── Document Feedback Model (QA Opinion & Feedback)
+class DocumentFeedback(Base):
+    __tablename__ = "document_feedback"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    document_id = Column(String, ForeignKey("documents.id"), index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    rating = Column(String)  # 'thumbs_up' or 'thumbs_down'
+    feedback_text = Column(Text, nullable=True)  # User's optional feedback
+    ai_improvement_suggestions = Column(Text, nullable=True)  # AI-generated suggestions for quality improvement
+    doc_type = Column(String)  # 'FRD' or 'BRD'
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    document = relationship("Document")
+    user = relationship("User")

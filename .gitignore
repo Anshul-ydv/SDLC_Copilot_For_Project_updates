@@ -8,6 +8,7 @@ __pycache__/
 sql_app.db
 chroma_db/
 uploaded_docs/
+given_files/
 
 # Logs
 *.log

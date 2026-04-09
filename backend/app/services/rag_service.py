@@ -5,17 +5,17 @@ from langchain_community.document_loaders import PyPDFLoader, CSVLoader, Docx2tx
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from app.services.prompt_templates import get_prompt_for_role
 
 #  load this securely from .env
-if "GOOGLE_API_KEY" not in os.environ:
+if "GROQ_API_KEY" not in os.environ:
     # Use getenv if not already in environ (e.g. from .env file loaded in main.py)
-    os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "AIzaSyATfB64xz7H2PKlizMrZKBRJkCENnRkNwA")
+    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY", "")
 
-if not os.environ.get("GOOGLE_API_KEY"):
-    print("Warning: GOOGLE_API_KEY not found in environment variables.")
+if not os.environ.get("GROQ_API_KEY"):
+    print("Warning: GROQ_API_KEY not found in environment variables.")
 
 class RAGService:
     def __init__(self):
@@ -30,8 +30,8 @@ class RAGService:
                 embedding_function=self.embeddings,
                 collection_name="sdlc_reference_docs"
             )
-            # LLM configured for precision via Google Gemini
-            self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.2)
+            # LLM configured for precision - Updated to a supported model
+            self.llm = ChatGroq(temperature=0.2, model_name="llama-3.3-70b-versatile")
         except Exception as e:
             import traceback
             print(f"Warning: RAG Initialization Mock mode due to API keys or Network: {e}")
