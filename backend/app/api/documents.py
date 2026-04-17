@@ -1,4 +1,3 @@
-# API endpoints for document upload and retrieval
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from sqlalchemy.orm import Session
 import shutil
@@ -15,17 +14,14 @@ UPLOAD_DIR = "uploaded_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-# ── Pydantic Models for Request/Response
 class FeedbackRequest(BaseModel):
-    """Request model for submitting document feedback."""
-    rating: str  # 'thumbs_up' or 'thumbs_down'
-    feedback_text: str = None  # Optional user feedback
-    doc_type: str = None  # 'FRD' or 'BRD'
+    rating: str
+    feedback_text: str = None
+    doc_type: str = None
     user_id: str = None
 
 
 class FeedbackResponse(BaseModel):
-    """Response model for feedback."""
     id: str
     document_id: str
     rating: str
@@ -33,9 +29,6 @@ class FeedbackResponse(BaseModel):
     ai_improvement_suggestions: str = None
     doc_type: str = None
     created_at: str = None
-
-
-
 
 
 @router.post("/upload")
@@ -46,15 +39,39 @@ async def upload_document(
 ):
     """Endpoint to upload PDF, DOCX, or CSV files for RAG with metadata tracking."""
     try:
+        file_ext = os.path.splitext(file.filename)[1].lstrip(".").lower()
+        allowed_extensions = {'pdf', 'docx', 'csv', 'doc', 'txt'}
+        if file_ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File type '.{file_ext}' not supported. Allowed types: {', '.join(allowed_extensions)}"
+            )
+        
+        existing_doc = db.query(Document).filter(
+            Document.filename == file.filename,
+            Document.session_id == session_id
+        ).first()
+        if existing_doc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Document '{file.filename}' has already been uploaded to this session"
+            )
+        
         file_path = os.path.join(UPLOAD_DIR, file.filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Gather metadata
         file_size = os.path.getsize(file_path)
-        file_ext = os.path.splitext(file.filename)[1].lstrip(".").lower()
+        
+        MAX_FILE_SIZE = 20 * 1024 * 1024
+        if file_size > MAX_FILE_SIZE:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size ({file_size / (1024 * 1024):.2f} MB) exceeds maximum limit of 20 MB"
+            )
 
-        # Persist metadata in the Document table
         doc_record = Document(
             filename=file.filename,
             file_path=file_path,
@@ -67,10 +84,14 @@ async def upload_document(
         db.add(doc_record)
         db.commit()
 
-        # Trigger the RAG chunking and DB storing
-        rag_service.process_file(file_path, file.filename)
+        try:
+            rag_service.process_file(file_path, file.filename)
+        except Exception as e:
+            db.rollback()
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
-        # Mark as indexed after successful processing
         doc_record.status = "indexed"
         db.commit()
 
@@ -108,14 +129,15 @@ async def list_documents(session_id: str = None, db: Session = Depends(get_db)):
         ]
     }
 
+
 @router.delete("/{document_id}")
 async def delete_document(document_id: str, db: Session = Depends(get_db)):
+    """Delete a document and its associated file."""
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
         
     try:
-        # We can also clean up physical files if needed:
         if os.path.exists(doc.file_path):
             os.remove(doc.file_path)
             
@@ -127,25 +149,18 @@ async def delete_document(document_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Document Feedback Endpoints
-
 @router.post("/{document_id}/feedback")
 async def submit_feedback(
     document_id: str,
     feedback: FeedbackRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Submit QA feedback (thumbs up/down) for a document.
-    For thumbs_down, generates AI-powered improvement suggestions.
-    """
+    """Submit QA feedback (thumbs up/down) for a document."""
     try:
-        # Verify document exists
         doc = db.query(Document).filter(Document.id == document_id).first()
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        # Check if feedback already exists
         existing_feedback = db.query(DocumentFeedback).filter(
             DocumentFeedback.document_id == document_id,
             DocumentFeedback.user_id == feedback.user_id
@@ -153,10 +168,8 @@ async def submit_feedback(
         
         ai_suggestions = None
         
-        # Generate AI suggestions if thumbs_down
         if feedback.rating == "thumbs_down":
             try:
-                # Read document content for analysis
                 with open(doc.file_path, 'r', encoding='utf-8') as f:
                     doc_content = f.read()
             except:
@@ -171,7 +184,6 @@ async def submit_feedback(
                 feedback.feedback_text or ""
             )
         
-        # Update existing feedback or create new
         if existing_feedback:
             existing_feedback.rating = feedback.rating
             existing_feedback.feedback_text = feedback.feedback_text
@@ -194,7 +206,7 @@ async def submit_feedback(
         
         return {
             "status": "success",
-            "message": f"Feedback submitted successfully",
+            "message": "Feedback submitted successfully",
             "feedback_id": feedback_id,
             "rating": feedback.rating,
             "ai_suggestions": ai_suggestions if feedback.rating == "thumbs_down" else None
@@ -243,7 +255,7 @@ async def get_feedback(document_id: str, db: Session = Depends(get_db)):
 
 @router.get("/{document_id}/feedback/summary")
 async def get_feedback_summary(document_id: str, db: Session = Depends(get_db)):
-    """Get a summary of feedback for a document (thumbs up vs thumbs down count)."""
+    """Get a summary of feedback for a document."""
     try:
         doc = db.query(Document).filter(Document.id == document_id).first()
         if not doc:
@@ -256,7 +268,6 @@ async def get_feedback_summary(document_id: str, db: Session = Depends(get_db)):
         thumbs_up = sum(1 for f in feedbacks if f.rating == "thumbs_up")
         thumbs_down = sum(1 for f in feedbacks if f.rating == "thumbs_down")
         
-        # Get the most recent thumbs_down feedback with suggestions
         latest_improvement_suggestions = None
         latest_feedback_with_suggestions = db.query(DocumentFeedback).filter(
             DocumentFeedback.document_id == document_id,

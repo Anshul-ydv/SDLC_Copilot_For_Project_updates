@@ -1,7 +1,6 @@
 # Feedback Service for QA Document Quality Assessment
 import os
 from langchain_groq import ChatGroq
-from langchain_core.prompts import PromptTemplate
 
 class FeedbackService:
     """Service for generating QA feedback and improvement suggestions for FRD/BRD documents."""
@@ -35,13 +34,15 @@ class FeedbackService:
         else:
             prompt = self._get_generic_improvement_prompt()
         
-        full_prompt = f"""Document Type: {doc_type}
-User Feedback: {feedback_text if feedback_text else "No specific feedback provided"}
-
-Document Content:
-{document_content[:5000]}  # Limit to first 5000 characters to avoid token overflow
-
-{prompt}"""
+        # Limit content to 5000 chars to avoid token overflow
+        truncated_content = document_content[:5000]
+        
+        full_prompt = (
+            f"Document Type: {doc_type}\n"
+            f"User Feedback: {feedback_text if feedback_text else 'No specific feedback provided'}\n\n"
+            f"Document Content:\n{truncated_content}\n\n"
+            f"{prompt}"
+        )
         
         try:
             response = self.llm.invoke(full_prompt)

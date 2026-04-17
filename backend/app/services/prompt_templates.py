@@ -8,6 +8,14 @@ Convert the current high-level document into a fully detailed, unambiguous, test
 
 ### Mandatory Requirements
 
+#### 0. Add Document Details
+For every detail:
+* Document ID
+* Document Name
+* Document Type
+* Document Created Date
+
+
 #### 1. Add Detailed Functional Flows
 For every feature:
 * Step-by-step system behavior

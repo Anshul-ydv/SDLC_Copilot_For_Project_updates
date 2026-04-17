@@ -27,7 +27,7 @@ export default function Sidebar({ userId, role, activeSessionId, onSelectSession
   const fetchSessions = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`http://localhost:8000/api/chat/sessions?user_id=${userId}`);
+      const response = await axios.get(`http://127.0.0.1:8000/api/chat/sessions?user_id=${userId}`);
       setSessions(response.data);
     } catch (error) {
       console.error("Failed to fetch sessions", error);
@@ -47,7 +47,7 @@ export default function Sidebar({ userId, role, activeSessionId, onSelectSession
     if (!confirm("Are you sure you want to delete this session?")) return;
     
     try {
-      await axios.delete(`http://localhost:8000/api/chat/sessions/${sessionId}`);
+      await axios.delete(`http://127.0.0.1:8000/api/chat/sessions/${sessionId}`);
       setSessions(prev => prev.filter(s => s.id !== sessionId));
     } catch (error) {
       console.error("Failed to delete session", error);

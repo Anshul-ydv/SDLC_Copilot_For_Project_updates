@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Sparkles, FileDown, Loader2, Eye, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Send, Bot, User, Sparkles, FileDown, Loader2, Eye, CheckCircle2, XCircle, RefreshCw, Copy, Check, FileCode } from "lucide-react";
 import axios from "axios";
 import clsx from "clsx";
 
@@ -30,17 +30,17 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
   const [rejectedMessageId, setRejectedMessageId] = useState<string | null>(null);
   const [rejectedTaskType, setRejectedTaskType] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // 1. Initial Greeting if no session
-  const defaultGreeting: Message = {
-    id: 'welcome',
-    role: 'assistant',
-    content: `Hello! I am your SDLC Copilot. Since you are logged in as a ${role}, my responses are tuned to your workflow.\n\nPlease upload reference documents in the left panel, then ask me a question or use one of the quick actions below to generate a document.`
-  };
 
   // 2. Load History when sessionId changes
   useEffect(() => {
+    const defaultGreeting: Message = {
+      id: 'welcome',
+      role: 'assistant',
+      content: `Hello! I am your SDLC Copilot. Since you are logged in as a ${role}, my responses are tuned to your workflow.\n\nPlease upload reference documents in the left panel, then ask me a question or use one of the quick actions below to generate a document.`
+    };
+
     const fetchHistory = async () => {
       if (!sessionId) {
         setMessages([defaultGreeting]);
@@ -49,10 +49,11 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
 
       try {
         setIsSyncing(true);
-        const response = await axios.get(`http://localhost:8000/api/chat/sessions/${sessionId}/messages`);
+        const response = await axios.get(`http://127.0.0.1:8000/api/chat/sessions/${sessionId}/messages`);
         setMessages(response.data.length > 0 ? response.data : [defaultGreeting]);
       } catch (error) {
         console.error("Failed to load history", error);
+        setMessages([defaultGreeting]);
       } finally {
         setIsSyncing(false);
       }
@@ -89,7 +90,7 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
     // 1. If no session, create one first
     if (!currentSessionId) {
        try {
-         const sessionRes = await axios.post("http://localhost:8000/api/chat/sessions", {
+         const sessionRes = await axios.post("http://127.0.0.1:8000/api/chat/sessions", {
            user_id: localStorage.getItem("user_id"),
            role: role,
            title: queryToUse.substring(0, 30) + (queryToUse.length > 30 ? "..." : "")
@@ -109,7 +110,7 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
 
     try {
       // 2. Use FETCH for Streaming instead of Axios
-      const response = await fetch("http://localhost:8000/api/chat/query/stream", {
+      const response = await fetch("http://127.0.0.1:8000/api/chat/query/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,9 +159,10 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
         setWaitingForFeedback(false);
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Streaming error", error);
-      setMessages(prev => [...prev, { id: 'error', role: 'assistant', content: "An error occurred during streaming." }]);
+      const errMsg = error instanceof Error ? error.message : "An error occurred. Please check your connection and try again.";
+      setMessages(prev => [...prev, { id: 'error-' + Date.now(), role: 'assistant', content: `Error: ${errMsg}` }]);
       setIsLoading(false);
     }
   };
@@ -170,7 +172,7 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
       setPdfError(null);
       console.log("Generating PDF preview...");
       
-      const response = await axios.post("http://localhost:8000/api/chat/generate-pdf", 
+      const response = await axios.post("http://127.0.0.1:8000/api/chat/generate-pdf", 
         { content, filename: "SDLC_Preview.pdf", doc_type: docType || "general" },
         { responseType: 'blob' }
       );
@@ -201,7 +203,7 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
       console.log("Accepting document and downloading PDF...");
       
       // 1. Download PDF with proper formatting
-      const response = await axios.post("http://localhost:8000/api/chat/generate-pdf", 
+      const response = await axios.post("http://127.0.0.1:8000/api/chat/generate-pdf", 
         { 
           content, 
           filename: `SDLC_Approved_Doc_${Date.now()}.pdf`,
@@ -273,6 +275,28 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
     URL.revokeObjectURL(url);
   };
 
+  const handleExportAsMarkdown = (content: string) => {
+    // TC-UI-021: Export response as markdown
+    const markdownContent = `# Document Export\n\n**Exported:** ${new Date().toISOString()}\n\n---\n\n${content}`;
+    const blob = new Blob([markdownContent], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `SDLC_Document_${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyToClipboard = async (content: string, msgId: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(msgId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy to clipboard", err);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-neutral-950 relative">
       {/* Sync Overlay */}
@@ -317,10 +341,21 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
                           <CheckCircle2 className="w-4 h-4" /> Accept & Download
                         </button>
                         <button 
-                          onClick={() => handleDownload(msg.content, 'md')} 
+                          onClick={() => handleExportAsMarkdown(msg.content)} 
                           className="flex items-center gap-2 px-3 py-1.5 bg-indigo-900/40 hover:bg-indigo-800/50 border border-indigo-800 rounded text-sm transition-colors text-indigo-200"
                         >
                           <FileDown className="w-4 h-4" /> Download in .md
+                        </button>
+                        <button 
+                          onClick={() => handleCopyToClipboard(msg.content, msg.id)} 
+                          className={`flex items-center gap-2 px-3 py-1.5 border rounded text-sm transition-colors ${
+                            copiedMessageId === msg.id 
+                              ? 'bg-green-900/40 border-green-800 text-green-200' 
+                              : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-600 text-neutral-200'
+                          }`}
+                          title="Copy to clipboard"
+                        >
+                          {copiedMessageId === msg.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} {copiedMessageId === msg.id ? 'Copied!' : 'Copy'}
                         </button>
                         <button 
                           onClick={() => handleReject(msg.id, msg.taskType)} 
@@ -345,6 +380,17 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
                         >
                           <FileDown className="w-4 h-4" /> Download PDF
                         </button>
+                        <button 
+                          onClick={() => handleCopyToClipboard(msg.content, msg.id)} 
+                          className={`flex items-center gap-2 px-3 py-1.5 border rounded text-sm transition-colors ${
+                            copiedMessageId === msg.id 
+                              ? 'bg-green-900/40 border-green-800 text-green-200' 
+                              : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-600 text-neutral-200'
+                          }`}
+                          title="Copy to clipboard"
+                        >
+                          {copiedMessageId === msg.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} {copiedMessageId === msg.id ? 'Copied!' : 'Copy'}
+                        </button>
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-900/20 border border-rose-800/30 rounded text-sm text-rose-400">
                            <XCircle className="w-4 h-4" /> Awaiting Modifications
                         </div>
@@ -352,9 +398,22 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
                    )}
 
                    {msg.status === 'accepted' && (
-                     <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-900/20 border border-emerald-800/30 rounded text-sm text-emerald-400">
-                        <CheckCircle2 className="w-4 h-4" /> Document Accepted & Downloaded. Starting new session...
-                     </div>
+                     <>
+                        <button 
+                          onClick={() => handleCopyToClipboard(msg.content, msg.id)} 
+                          className={`flex items-center gap-2 px-3 py-1.5 border rounded text-sm transition-colors ${
+                            copiedMessageId === msg.id 
+                              ? 'bg-green-900/40 border-green-800 text-green-200' 
+                              : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-600 text-neutral-200'
+                          }`}
+                          title="Copy to clipboard"
+                        >
+                          {copiedMessageId === msg.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} {copiedMessageId === msg.id ? 'Copied!' : 'Copy'}
+                        </button>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-900/20 border border-emerald-800/30 rounded text-sm text-emerald-400">
+                           <CheckCircle2 className="w-4 h-4" /> Document Accepted & Downloaded. Starting new session...
+                        </div>
+                     </>
                    )}
                 </div>
               )}

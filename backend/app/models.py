@@ -1,4 +1,3 @@
-# Models for database schema
 import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Integer, JSON
 from sqlalchemy.orm import relationship
@@ -6,7 +5,6 @@ from datetime import datetime
 from .database import Base
 
 
-# ── User Model 
 class User(Base):
     __tablename__ = "users"
 
@@ -21,18 +19,17 @@ class User(Base):
     documents = relationship("Document", back_populates="uploaded_by_user", cascade="all, delete-orphan")
 
 
-# ── Document Model
 class Document(Base):
     __tablename__ = "documents"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     filename = Column(String(255), nullable=False, index=True)
     file_path = Column(String(512), nullable=False)
-    file_size = Column(Integer)  # bytes
-    file_type = Column(String(50))  # pdf, docx, csv
+    file_size = Column(Integer)
+    file_type = Column(String(50))
     upload_date = Column(DateTime, default=datetime.utcnow)
-    status = Column(String(20), default="indexed")  # uploaded, indexed, error
-    metadata_json = Column(JSON, default=dict)  # extensible metadata
+    status = Column(String(20), default="indexed")
+    metadata_json = Column(JSON, default=dict)
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     session_id = Column(String, ForeignKey("chat_sessions.id"), nullable=True)
 
@@ -40,7 +37,6 @@ class Document(Base):
     session = relationship("ChatSession")
 
 
-# ── Chat Session Model 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
@@ -54,30 +50,28 @@ class ChatSession(Base):
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
 
 
-# ── Chat Message Model
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(String, ForeignKey("chat_sessions.id"))
-    role = Column(String)  # 'user' or 'assistant'
+    role = Column(String)
     content = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
 
 
-# ── Document Feedback Model (QA Opinion & Feedback)
 class DocumentFeedback(Base):
     __tablename__ = "document_feedback"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     document_id = Column(String, ForeignKey("documents.id"), index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
-    rating = Column(String)  # 'thumbs_up' or 'thumbs_down'
-    feedback_text = Column(Text, nullable=True)  # User's optional feedback
-    ai_improvement_suggestions = Column(Text, nullable=True)  # AI-generated suggestions for quality improvement
-    doc_type = Column(String)  # 'FRD' or 'BRD'
+    rating = Column(String)
+    feedback_text = Column(Text, nullable=True)
+    ai_improvement_suggestions = Column(Text, nullable=True)
+    doc_type = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

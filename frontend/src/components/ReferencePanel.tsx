@@ -21,6 +21,7 @@ interface ReferencePanelProps {
 export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<{
     docId: string;
     docName: string;
@@ -37,7 +38,7 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
       return;
     }
     try {
-      const response = await axios.get(`http://localhost:8000/api/documents/list?session_id=${sessionId}`);
+      const response = await axios.get(`http://127.0.0.1:8000/api/documents/list?session_id=${sessionId}`);
       const documents = response.data.documents.map((doc: any) => ({
         id: doc.id,
         name: doc.filename,
@@ -50,7 +51,7 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
       documents.forEach(async (doc) => {
         try {
           const feedbackRes = await axios.get(
-            `http://localhost:8000/api/documents/${doc.id}/feedback/summary`
+            `http://127.0.0.1:8000/api/documents/${doc.id}/feedback/summary`
           );
           setFiles(prev => prev.map(f => 
             f.id === doc.id 
@@ -77,10 +78,32 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  const validateFileType = (filename: string): { valid: boolean; error?: string } => {
+    const allowedExtensions = ['pdf', 'docx', 'doc', 'csv', 'txt'];
+    const fileExt = filename.split('.').pop()?.toLowerCase();
+    
+    if (!fileExt || !allowedExtensions.includes(fileExt)) {
+      return {
+        valid: false,
+        error: `File type '.${fileExt}' not supported. Allowed: ${allowedExtensions.join(', ')}`
+      };
+    }
+    return { valid: true };
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length || !sessionId) return;
     
     const file = e.target.files[0];
+    setUploadError(null);
+    
+    // TC-INT-012: Client-side file type validation
+    const validation = validateFileType(file.name);
+    if (!validation.valid) {
+      setUploadError(validation.error || 'Invalid file type');
+      return;
+    }
+    
     const tempId = `temp-${Date.now()}`;
     const newFile = { id: tempId, name: file.name, status: 'uploading' as const, feedback: { rating: null } };
     setFiles(prev => [...prev, newFile]);
@@ -91,7 +114,7 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
     formData.append("session_id", sessionId);
 
     try {
-      const response = await axios.post("http://localhost:8000/api/documents/upload", formData, {
+      const response = await axios.post("http://127.0.0.1:8000/api/documents/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       
@@ -101,8 +124,10 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
         status: 'done', 
         feedback: { rating: null }
       } : f));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload failed", error);
+      const errorMsg = error.response?.data?.detail || "Upload failed";
+      setUploadError(errorMsg);
       setFiles(prev => prev.filter(f => f.id !== tempId)); 
     } finally {
       setIsUploading(false);
@@ -114,7 +139,7 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
     if (!confirm(`Delete "${fileName}"?`)) return;
 
     try {
-      await axios.delete(`http://localhost:8000/api/documents/${fileId}`);
+      await axios.delete(`http://127.0.0.1:8000/api/documents/${fileId}`);
       setFiles(prev => prev.filter(f => f.id !== fileId));
     } catch (error) {
       console.error("Failed to delete file", error);
@@ -128,7 +153,7 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
     setIsSubmittingFeedback(true);
     try {
       const response = await axios.post(
-        `http://localhost:8000/api/documents/${feedbackModal.docId}/feedback`,
+        `http://127.0.0.1:8000/api/documents/${feedbackModal.docId}/feedback`,
         {
           rating,
           feedback_text: feedbackText,
@@ -176,13 +201,18 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
       ) : (
         <>
           <div className="mb-6">
+            {uploadError && (
+              <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded text-sm text-red-300">
+                {uploadError}
+              </div>
+            )}
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-neutral-700 border-dashed rounded-lg cursor-pointer bg-neutral-800/50 hover:bg-neutral-800 transition-colors">
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <UploadCloud className="w-8 h-8 text-neutral-400 mb-2" />
                 <p className="text-sm text-neutral-400"><span className="font-semibold text-blue-400">Click to upload</span> or drag</p>
-                <p className="text-xs text-neutral-500 mt-1">PDF, DOCX, CSV</p>
+                <p className="text-xs text-neutral-500 mt-1">PDF, DOCX, CSV (Max 20MB)</p>
               </div>
-              <input type="file" className="hidden" onChange={handleFileUpload} accept=".pdf,.csv,.doc,.docx" />
+              <input type="file" className="hidden" onChange={handleFileUpload} accept=".pdf,.csv,.doc,.docx,.txt" />
             </label>
           </div>
 

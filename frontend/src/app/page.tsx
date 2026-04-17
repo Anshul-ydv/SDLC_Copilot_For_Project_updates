@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{email?: string; password?: string}>({});
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -16,13 +17,37 @@ export default function LoginPage() {
     setMounted(true);
   }, []);
 
+  const validateForm = () => {
+    const errors: {email?: string; password?: string} = {};
+    if (!email.trim()) {
+      errors.email = "Email is required";
+    } else if (!email.includes("@")) {
+      errors.email = "Please enter a valid email address";
+    }
+    if (!password.trim()) {
+      errors.password = "Password is required";
+    } else if (password.length < 3) {
+      errors.password = "Password must be at least 3 characters";
+    }
+    return errors;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("");
+      return;
+    }
+    
+    setFieldErrors({});
     setLoading(true);
     setError("");
 
     try {
-      const response = await axios.post("http://localhost:8000/api/auth/login", {
+      const response = await axios.post("http://127.0.0.1:8000/api/auth/login", {
         email,
         password,
       });
@@ -34,8 +59,18 @@ export default function LoginPage() {
 
       // Redirect to chat dashboard
       router.push("/chat");
-    } catch (err) {
-      setError("Invalid credentials. Try ba@hsbc.com, fba@hsbc.com, or qa@hsbc.com with password 'password123'.");
+    } catch (err: any) {
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("Invalid email or password. Please try again.");
+        } else {
+          setError(`Server Error (${err.response.status}): ${err.response.data?.detail || "Unknown error"}`);
+        }
+      } else if (err.request) {
+        setError("Connection Error: Cannot reach the backend server. Please ensure the backend is running at http://127.0.0.1:8000");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -63,25 +98,31 @@ export default function LoginPage() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 bg-neutral-900 border border-neutral-700 rounded focus:outline-none focus:border-blue-500 text-white"
+              onChange={(e) => {setEmail(e.target.value); setFieldErrors({...fieldErrors, email: undefined});}}
+              className={`w-full px-4 py-2 bg-neutral-900 border rounded focus:outline-none text-white transition-colors ${
+                fieldErrors.email ? 'border-red-500 focus:border-red-500' : 'border-neutral-700 focus:border-blue-500'
+              }`}
               required
             />
+            {fieldErrors.email && <p className="text-sm text-red-400 mt-1">{fieldErrors.email}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-1">Password</label>
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-neutral-900 border border-neutral-700 rounded focus:outline-none focus:border-blue-500 text-white"
+              onChange={(e) => {setPassword(e.target.value); setFieldErrors({...fieldErrors, password: undefined});}}
+              className={`w-full px-4 py-2 bg-neutral-900 border rounded focus:outline-none text-white transition-colors ${
+                fieldErrors.password ? 'border-red-500 focus:border-red-500' : 'border-neutral-700 focus:border-blue-500'
+              }`}
               required
             />
+            {fieldErrors.password && <p className="text-sm text-red-400 mt-1">{fieldErrors.password}</p>}
           </div>
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-colors"
+            disabled={loading || !email.trim() || !password.trim()}
+            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow transition-colors"
           >
             {loading ? "Authenticating..." : "Login"}
           </button>
