@@ -59,15 +59,20 @@ export default function LoginPage() {
 
       // Redirect to chat dashboard
       router.push("/chat");
-    } catch (err: any) {
-      if (err.response) {
-        if (err.response.status === 401) {
-          setError("Invalid email or password. Please try again.");
+    } catch (err) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as { response?: { status?: number; data?: { detail?: string } }; request?: unknown };
+        if (error.response) {
+          if (error.response.status === 401) {
+            setError("Invalid email or password. Please try again.");
+          } else {
+            setError(`Server Error (${error.response.status}): ${error.response.data?.detail || "Unknown error"}`);
+          }
+        } else if (error.request) {
+          setError("Connection Error: Cannot reach the backend server. Please ensure the backend is running at http://127.0.0.1:8000");
         } else {
-          setError(`Server Error (${err.response.status}): ${err.response.data?.detail || "Unknown error"}`);
+          setError("An unexpected error occurred. Please try again.");
         }
-      } else if (err.request) {
-        setError("Connection Error: Cannot reach the backend server. Please ensure the backend is running at http://127.0.0.1:8000");
       } else {
         setError("An unexpected error occurred. Please try again.");
       }

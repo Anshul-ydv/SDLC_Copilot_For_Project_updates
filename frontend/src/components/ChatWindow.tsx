@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Sparkles, FileDown, Loader2, Eye, CheckCircle2, XCircle, RefreshCw, Copy, Check, FileCode } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { Send, Bot, User, Sparkles, FileDown, Loader2, Eye, CheckCircle2, XCircle, RefreshCw, Copy, Check } from "lucide-react";
 import axios from "axios";
 import clsx from "clsx";
 
@@ -19,31 +19,36 @@ interface ChatWindowProps {
   sessionId: string | null;
   onSessionCreated?: (id: string) => void;
   onResetSession?: () => void;
+  onDocumentsCheck?: (hasDocuments: boolean) => void;
 }
 
-export default function ChatWindow({ role, sessionId, onSessionCreated, onResetSession }: ChatWindowProps) {
+export default function ChatWindow({ role, sessionId, onSessionCreated, onResetSession, onDocumentsCheck }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [waitingForFeedback, setWaitingForFeedback] = useState(false);
-  const [rejectedMessageId, setRejectedMessageId] = useState<string | null>(null);
   const [rejectedTaskType, setRejectedTaskType] = useState<string | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [hasDocuments, setHasDocuments] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const MAX_CHARS = 4000;
+  const WARNING_THRESHOLD = 3800;
+
+  // Default greeting message (memoized to prevent re-creation)
+  const defaultGreeting: Message = useMemo(() => ({
+    id: 'welcome',
+    role: 'assistant' as const,
+    content: `Hello! I am your SDLC Copilot. Since you are logged in as a ${role}, my responses are tuned to your workflow.\n\nPlease upload reference documents in the left panel, then ask me a question or use one of the quick actions below to generate a document.`
+  }), [role]);
 
   // 2. Load History when sessionId changes
   useEffect(() => {
-    const defaultGreeting: Message = {
-      id: 'welcome',
-      role: 'assistant',
-      content: `Hello! I am your SDLC Copilot. Since you are logged in as a ${role}, my responses are tuned to your workflow.\n\nPlease upload reference documents in the left panel, then ask me a question or use one of the quick actions below to generate a document.`
-    };
-
     const fetchHistory = async () => {
       if (!sessionId) {
         setMessages([defaultGreeting]);
+        setHasDocuments(true);
         return;
       }
 
@@ -51,16 +56,23 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
         setIsSyncing(true);
         const response = await axios.get(`http://127.0.0.1:8000/api/chat/sessions/${sessionId}/messages`);
         setMessages(response.data.length > 0 ? response.data : [defaultGreeting]);
+        
+        // Check if session has documents
+        const docsResponse = await axios.get(`http://127.0.0.1:8000/api/documents/list?session_id=${sessionId}`);
+        const hasDocsNow = docsResponse.data.documents && docsResponse.data.documents.length > 0;
+        setHasDocuments(hasDocsNow);
+        onDocumentsCheck?.(hasDocsNow);
       } catch (error) {
         console.error("Failed to load history", error);
         setMessages([defaultGreeting]);
+        setHasDocuments(true);
       } finally {
         setIsSyncing(false);
       }
     };
 
     fetchHistory();
-  }, [sessionId, role]);
+  }, [sessionId, role, defaultGreeting]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -79,13 +91,43 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
 
   const chips = getPromptChips();
 
+  const validateRoleAccess = (taskType: string | null | undefined, userRole: string): { allowed: boolean; message?: string } => {
+    if (!taskType) return { allowed: true };
+    
+    const accessMatrix: Record<string, string[]> = {
+      'brd': ['Business Analyst (BA)'],
+      'frd': ['Functional BA (FBA)'],
+      'test_pack': ['QA / Tester']
+    };
+    
+    const allowedRoles = accessMatrix[taskType];
+    if (allowedRoles && !allowedRoles.includes(userRole)) {
+      return {
+        allowed: false,
+        message: `This document type is available for ${allowedRoles.join(', ')} roles. Please open a new session with the appropriate role.`
+      };
+    }
+    return { allowed: true };
+  };
+
   const handleSend = async (queryToUse: string, taskType?: string) => {
     if (!queryToUse.trim()) return;
 
     let currentSessionId = sessionId;
     
     // If user is providing feedback on rejected document, use the stored taskType
-    let effectiveTaskType = taskType || (waitingForFeedback ? rejectedTaskType : null);
+    const effectiveTaskType = taskType || (waitingForFeedback ? rejectedTaskType : null);
+    
+    // Validate role-based access control
+    const accessCheck = validateRoleAccess(effectiveTaskType, role);
+    if (!accessCheck.allowed) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'system',
+        content: accessCheck.message || 'Access denied for this document type.'
+      }]);
+      return;
+    }
 
     // 1. If no session, create one first
     if (!currentSessionId) {
@@ -154,22 +196,31 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
       
       // Clear rejected state after successful feedback
       if (waitingForFeedback) {
-        setRejectedMessageId(null);
         setRejectedTaskType(null);
         setWaitingForFeedback(false);
       }
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Streaming error", error);
-      const errMsg = error instanceof Error ? error.message : "An error occurred. Please check your connection and try again.";
-      setMessages(prev => [...prev, { id: 'error-' + Date.now(), role: 'assistant', content: `Error: ${errMsg}` }]);
+      
+      // Enhanced error handling for AI model unavailability
+      let errMsg = "An error occurred. Please check your connection and try again.";
+      if (error instanceof Error) {
+        const errorStr = error.message.toLowerCase();
+        if (errorStr.includes('econnrefused') || errorStr.includes('timeout') || errorStr.includes('network')) {
+          errMsg = "The AI model is currently unavailable. Please contact your administrator.";
+        } else {
+          errMsg = error.message;
+        }
+      }
+      
+      setMessages(prev => [...prev, { id: 'error-' + Date.now(), role: 'system', content: errMsg }]);
       setIsLoading(false);
     }
   };
 
   const handleView = async (content: string, docType?: string) => {
     try {
-      setPdfError(null);
       console.log("Generating PDF preview...");
       
       const response = await axios.post("http://127.0.0.1:8000/api/chat/generate-pdf", 
@@ -186,7 +237,6 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to generate PDF preview";
       console.error("PDF View failed:", errorMsg);
-      setPdfError(errorMsg);
       
       // Show error to user
       setMessages(prev => [...prev, {
@@ -199,7 +249,6 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
 
   const handleAccept = async (msgId: string, content: string, docType?: string) => {
     try {
-      setPdfError(null);
       console.log("Accepting document and downloading PDF...");
       
       // 1. Download PDF with proper formatting
@@ -227,7 +276,6 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
 
       // 2. Mark as accepted
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'accepted' } : m));
-      setRejectedMessageId(null);
 
       // 3. Reset session in parent and start new chat
       setTimeout(() => {
@@ -242,7 +290,6 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to accept and download document";
       console.error("Acceptance failed:", errorMsg);
-      setPdfError(errorMsg);
       
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -253,7 +300,6 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
   };
 
   const handleReject = (msgId: string, taskType?: string) => {
-    setRejectedMessageId(msgId);
     setRejectedTaskType(taskType || null);
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'rejected' } : m));
     setWaitingForFeedback(true);
@@ -262,17 +308,6 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
       role: 'system',
       content: "Document rejected. Please specify what should be modified or added to refine the document. You can still view or download the PDF above."
     }]);
-  };
-
-  const handleDownload = (content: string, type: 'pdf'|'csv'|'doc'|'md') => {
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const extension = type === 'csv' ? 'csv' : type === 'md' ? 'md' : 'txt';
-    a.download = `Generated_Document_${Date.now()}.${extension}`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const handleExportAsMarkdown = (content: string) => {
@@ -436,6 +471,23 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
       {/* Input Area */}
       <div className="p-4 bg-neutral-900/80 backdrop-blur-md border-t border-neutral-800">
         <div className="max-w-4xl mx-auto">
+          {/* No Documents Warning Banner */}
+          {sessionId && !hasDocuments && (
+            <div className="mb-3 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-amber-400 text-sm font-bold">!</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-amber-300 font-medium">
+                  Please upload at least one reference document before sending a query.
+                </p>
+                <p className="text-xs text-amber-400/70 mt-1">
+                  Upload documents in the right panel to enable context-aware responses.
+                </p>
+              </div>
+            </div>
+          )}
+          
           {waitingForFeedback && (
             <div className="mb-3 p-3 bg-rose-900/20 border border-rose-800/50 rounded-lg">
               <p className="text-sm text-rose-300 font-medium flex items-start gap-2">
@@ -472,7 +524,12 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
           >
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                if (newValue.length <= MAX_CHARS) {
+                  setInput(newValue);
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -483,17 +540,34 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
               placeholder={waitingForFeedback ? "Describe what changes or additions are needed..." : "Ask a question or instruct the Copilot... (Press Enter to send)"}
               className="flex-1 bg-transparent text-neutral-100 px-3 py-2 resize-none max-h-32 focus:outline-none placeholder-neutral-500"
               rows={1}
+              maxLength={MAX_CHARS}
             />
             <button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input.trim() || input.length < 3 || input.length > MAX_CHARS || (!!sessionId && !hasDocuments)}
               className="p-3 bg-blue-600 hover:bg-blue-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-white rounded-lg transition-colors flex-shrink-0"
+              title={
+                (!!sessionId && !hasDocuments) ? "Please upload at least one document first" :
+                input.length > MAX_CHARS ? `Maximum ${MAX_CHARS} characters allowed` : 
+                input.length < 3 ? "Minimum 3 characters required" : 
+                "Send message"
+              }
             >
               <Send className="w-5 h-5" />
             </button>
           </form>
-          <div className="text-center mt-2 text-xs text-neutral-500">
-            Powered by Retrieval-Augmented Generation (RAG). Responses based on uploaded session context.
+          <div className="flex items-center justify-between mt-2 text-xs">
+            <span className="text-neutral-500">
+              Powered by Retrieval-Augmented Generation (RAG). Responses based on uploaded session context.
+            </span>
+            <span className={clsx(
+              "font-mono font-medium",
+              input.length >= MAX_CHARS ? "text-red-400" :
+              input.length >= WARNING_THRESHOLD ? "text-amber-400" :
+              "text-neutral-600"
+            )}>
+              {input.length}/{MAX_CHARS}
+            </span>
           </div>
         </div>
       </div>

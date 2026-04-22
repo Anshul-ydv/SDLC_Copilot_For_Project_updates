@@ -9,7 +9,7 @@ python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
 langchain
-langchain-groq
+langchain-openai
 langchain-huggingface
 langchain-community
 langchain-pinecone
@@ -19,6 +19,7 @@ qdrant-client
 langchain-qdrant
 pypdf
 docx2txt
+python-docx
 pandas
 python-dotenv
 fpdf2

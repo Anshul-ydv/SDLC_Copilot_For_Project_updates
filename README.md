@@ -2,25 +2,63 @@
 
 An enterprise-grade AI-powered Retrieval-Augmented Generation (RAG) platform that revolutionizes Software Development Lifecycle (SDLC) documentation creation. Designed for Business Analysts (BAs), Functional Business Analysts (FBAs), and Quality Assurance (QA) engineers to generate high-fidelity Business Requirement Documents (BRDs), Functional Requirement Documents (FRDs), and comprehensive Test Packs.
 
+**NEW in v2.1.0**: Integrated MCP (Model Context Protocol) Multi-Agent Pipeline for advanced document processing with 5 specialized AI agents!
+
+**Latest Updates (April 2026)**:
+- ✅ All deprecations fixed (Python 3.12+, Pydantic v2, SQLAlchemy 2.0 compatible)
+- ✅ HuggingFace token integration for faster model downloads
+- ✅ 100% cloud-native architecture (PostgreSQL, Pinecone, Qdrant)
+- ✅ Zero local database overhead
+
 ---
 
-## 📋 Table of Contents
+## 🚀 Quick Start
+
+```bash
+# 1. Clone and setup
+cd backend
+python3 -m venv ../.venv
+source ../.venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Configure .env (see Configuration section)
+cp .env.example .env
+# Edit .env with your API keys
+
+# 3. Start backend
+python -m uvicorn main:app --reload
+
+# 4. Start frontend (new terminal)
+cd frontend
+npm install
+npm run dev
+
+# 5. Login at http://localhost:3000
+# Email: ba@hsbc.com | Password: password123
+```
+
+**API Docs**: http://localhost:8000/docs
+
+---
+
+## Table of Contents
 
 1. [What is This Project?](#what-is-this-project)
 2. [Why Use This?](#why-use-this)
 3. [When to Use This?](#when-to-use-this)
 4. [How to Get Started](#how-to-get-started)
-5. [System Architecture](#system-architecture)
-6. [Technology Stack](#technology-stack)
-7. [Project Structure](#project-structure)
-8. [API Documentation](#api-documentation)
-9. [Authentication](#authentication)
-10. [Database Setup](#database-setup)
-11. [Configuration](#configuration)
-12. [Running the Application](#running-the-application)
-13. [Testing](#testing)
-14. [Troubleshooting](#troubleshooting)
-15. [Future Enhancements](#future-enhancements)
+5. [MCP Multi-Agent Pipeline](#mcp-multi-agent-pipeline) ⭐ NEW
+6. [System Architecture](#system-architecture)
+7. [Technology Stack](#technology-stack)
+8. [Project Structure](#project-structure)
+9. [API Documentation](#api-documentation)
+10. [Authentication](#authentication)
+11. [Database Setup](#database-setup)
+12. [Configuration](#configuration)
+13. [Running the Application](#running-the-application)
+14. [Testing](#testing)
+15. [Troubleshooting](#troubleshooting)
+16. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -28,11 +66,12 @@ An enterprise-grade AI-powered Retrieval-Augmented Generation (RAG) platform tha
 
 The SDLC Automation Copilot is an intelligent workspace that combines:
 
-- **AI-Powered Generation**: Uses Groq's Llama-3.3-70B model for fast, accurate document generation
+- **AI-Powered Generation**: Uses OpenRouter's Gemma 2 27B model for high-quality, comprehensive document generation
 - **Semantic Search**: Retrieves relevant context from your documents using vector embeddings
 - **Role-Based Customization**: Generates content tailored to BA, FBA, or QA perspectives
 - **Session Management**: Maintains persistent chat histories and document versions
 - **Real-time Streaming**: Provides token-by-token response streaming for interactive experience
+- **Session-Based Isolation**: Documents are filtered by session for complete data isolation
 
 ### Core Capabilities
 
@@ -44,6 +83,7 @@ The SDLC Automation Copilot is an intelligent workspace that combines:
 | **Session Persistence** | Save and retrieve chat histories across sessions |
 | **Feedback System** | Rate generated content and get AI improvement suggestions |
 | **Real-time Streaming** | Stream responses token-by-token for interactive experience |
+| **MCP Multi-Agent Pipeline** | Process documents through 5 specialized AI agents for comprehensive analysis |
 
 ---
 
@@ -61,12 +101,13 @@ The SDLC Automation Copilot is an intelligent workspace that combines:
 
 ### Key Benefits
 
-✅ **Accelerated Throughput**: Reduce documentation time from days to minutes  
-✅ **Consistency**: Unified tone and structure across all documents  
-✅ **Traceability**: Every requirement grounded in source documentation  
-✅ **Role Optimization**: Content tailored to BA, FBA, or QA needs  
-✅ **Iterative Refinement**: Save, review, and improve generated content  
-✅ **Enterprise-Grade**: Secure, scalable, production-ready architecture  
+- **Accelerated Throughput**: Reduce documentation time from days to minutes
+- **Consistency**: Unified tone and structure across all documents
+- **Traceability**: Every requirement grounded in source documentation
+- **Role Optimization**: Content tailored to BA, FBA, or QA needs
+- **Iterative Refinement**: Save, review, and improve generated content
+- **Enterprise-Grade**: Secure, scalable, production-ready architecture
+- **Session Isolation**: Complete data separation between sessions  
 
 ---
 
@@ -96,10 +137,10 @@ The SDLC Automation Copilot is an intelligent workspace that combines:
 
 ### Not Suitable For
 
-❌ Real-time code generation  
-❌ Architectural decision making (requires human expertise)  
-❌ Security-critical documentation (requires manual review)  
-❌ Highly specialized domain knowledge (requires expert input)  
+- Real-time code generation
+- Architectural decision making (requires human expertise)
+- Security-critical documentation (requires manual review)
+- Highly specialized domain knowledge (requires expert input)  
 
 ---
 
@@ -109,8 +150,10 @@ The SDLC Automation Copilot is an intelligent workspace that combines:
 
 - Python 3.10+
 - Node.js 18+
-- PostgreSQL database (or SQLite for development)
-- Groq API key (free tier available at groq.com)
+- PostgreSQL database (Render or Neon recommended)
+- OpenRouter API key (free tier available)
+- Pinecone API key (for vector search)
+- Qdrant Cloud account (for document storage)
 
 ### Quick Start (5 minutes)
 
@@ -118,8 +161,8 @@ The SDLC Automation Copilot is an intelligent workspace that combines:
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python3 -m venv ../.venv
+source ../.venv/bin/activate  # Windows: ..\.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -131,24 +174,30 @@ Create `backend/.env`:
 # Database
 DATABASE_URL=postgresql://user:password@host:port/database
 
-# LLM
-GROQ_API_KEY=your_groq_api_key_here
+# LLM: OpenRouter (Gemma 2 27B)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # JWT Authentication
 JWT_SECRET_KEY=your_secret_key_here
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# Vector Store
+# Vector Store: Pinecone
 PINECONE_API_KEY=your_pinecone_key
+PINECONE_INDEX_NAME=sdlc-copilot
+
+# Document Store: Qdrant Cloud
 QDRANT_URL=your_qdrant_url
 QDRANT_API_KEY=your_qdrant_key
+QDRANT_COLLECTION_NAME=sdlc_documents
 ```
 
 #### 3. Start Backend
 
 ```bash
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+cd backend
+source ../.venv/bin/activate
+../.venv/bin/python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Backend runs at: `http://localhost:8000`
@@ -168,6 +217,67 @@ Frontend runs at: `http://localhost:3000`
 Use test credentials:
 - Email: `ba@hsbc.com`
 - Password: `password123`
+
+---
+
+## MCP Multi-Agent Pipeline
+
+### What is MCP?
+
+The **Model Context Protocol (MCP) Multi-Agent Pipeline** is an advanced document processing system that uses 5 specialized AI agents working together to comprehensively analyze and structure documents.
+
+```
+Input Document → Reader Agent → [5 Specialist Agents] → Master Receiver → Doc Maker → Output
+```
+
+### The 5 Specialist Agents
+
+1. **Requirements Agent (S1)** - Extracts functional and non-functional requirements
+2. **Table Analyzer Agent (S2)** - Analyzes table structures and data quality
+3. **Business Logic Agent (S3)** - Identifies business rules and process flows
+4. **Change Request Agent (S4)** - Tracks version changes and scope deltas
+5. **Validation Agent (S5)** - Validates document consistency and completeness
+
+### Quick Start with MCP
+
+```bash
+# Install python-docx dependency
+pip install python-docx
+
+# Process a document through MCP pipeline
+curl -X POST "http://localhost:8000/api/mcp/process" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@requirements.pdf" \
+  -F "session_id=test-session" \
+  -F "output_format=docx"
+```
+
+### What You Get
+
+The MCP pipeline produces:
+- **Formatted DOCX document** with cover page, TOC, and professional styling
+- **Extracted requirements** with IDs, types, and priorities
+- **Analyzed tables** with schemas and anomaly detection
+- **Business rules** and process flows
+- **Change tracking** with impact analysis
+- **Validation report** with quality checks
+- **7 intermediate JSON files** for full transparency
+
+### MCP Documentation
+
+- **Quick Start**: `files/MCP_QUICK_START.md` - Get started in 5 minutes
+- **Integration Guide**: `files/MCP_INTEGRATION_README.md` - Complete documentation
+- **Architecture**: `files/MCP_ARCHITECTURE.md` - System design
+- **Implementation**: `files/IMPLEMENTATION_GUIDE.md` - Step-by-step guide
+
+### MCP API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/mcp/process` | Process document through MCP pipeline |
+| `GET /api/mcp/download/{session_id}/{filename}` | Download processed document |
+| `GET /api/mcp/intermediate/{session_id}/{type}` | Get intermediate JSON outputs |
+| `GET /api/mcp/status/{document_id}` | Check processing status |
 
 ---
 
@@ -216,15 +326,21 @@ Use test credentials:
 - **Authentication**: JWT (JSON Web Tokens)
 
 ### AI & ML
-- **LLM**: Groq Llama-3.3-70B
-- **Embeddings**: HuggingFace all-MiniLM-L6-v2
-- **Vector DB**: ChromaDB
+- **LLM**: OpenRouter Gemma 2 27B (Free Tier)
+- **Context Window**: 16,000 tokens
+- **Embeddings**: HuggingFace sentence-transformers/all-MiniLM-L6-v2 (384 dimensions)
+- **Vector DB**: Pinecone (Serverless)
+- **Document Store**: Qdrant Cloud
 - **Orchestration**: LangChain
 
 ### Infrastructure
-- **Database**: PostgreSQL (Render)
+- **Database**: PostgreSQL (Render) - Cloud-hosted, no local SQLite
+- **Vector Search**: Pinecone (Serverless) - Cloud-hosted
+- **Document Store**: Qdrant Cloud - Cloud-hosted
+- **Embeddings**: HuggingFace sentence-transformers (with HF_TOKEN for faster downloads)
 - **Deployment**: Docker-ready
 - **Version Control**: Git
+- **Architecture**: 100% cloud-native, zero local database overhead
 
 ---
 
@@ -489,9 +605,25 @@ For detailed JWT documentation, see `backend/JWT_AUTH_README.md`
 
 ## Database Setup
 
+### Cloud-Native Architecture ☁️
+
+This project uses **100% cloud databases** - no local database files are created:
+
+| Database Type | Service | Purpose | Status |
+|---------------|---------|---------|--------|
+| **Relational DB** | PostgreSQL on Render | User auth, sessions, documents | ✅ Online |
+| **Vector Store** | Pinecone Cloud | Semantic search embeddings | ✅ Online |
+| **Document Store** | Qdrant Cloud | Document storage & retrieval | ✅ Online |
+
+**Benefits:**
+- ✅ Zero local disk usage for databases
+- ✅ Reduced processor load (all DB operations handled by cloud)
+- ✅ Better performance (cloud databases are optimized)
+- ✅ Automatic backups and scaling
+
 ### PostgreSQL (Production)
 
-#### Using Render
+#### Using Render (Recommended)
 
 1. Go to [render.com](https://render.com)
 2. Create new PostgreSQL database
@@ -502,20 +634,20 @@ For detailed JWT documentation, see `backend/JWT_AUTH_README.md`
 DATABASE_URL=postgresql://user:password@host:port/database
 ```
 
-#### Using Neon
+#### Using Neon (Alternative)
 
 1. Go to [neon.tech](https://neon.tech)
 2. Create new project
 3. Copy connection string
 4. Add to `.env`
 
-### SQLite (Development)
+### SQLite (Development/Testing Only)
 
-Default configuration uses SQLite:
+SQLite is used **only** for:
+- ✅ Running tests (in-memory: `sqlite:///:memory:`)
+- ✅ Local development without internet (fallback)
 
-```env
-DATABASE_URL=sqlite:///./sql_app.db
-```
+**Note:** Since `DATABASE_URL` is set in `.env`, SQLite is never used in production. No local database files (`sql_app.db`, `chroma_db/`) are created.
 
 ### Database Models
 
@@ -575,15 +707,19 @@ Create `backend/.env` with:
 # ── Database ──────────────────────────────────────────
 DATABASE_URL=postgresql://user:password@host:port/database
 
-# ── LLM: Groq Cloud ───────────────────────────────────
-GROQ_API_KEY=your_groq_api_key_here
+# ── LLM: OpenRouter (Gemma 2 27B) ─────────────────────
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+
+# ── HuggingFace Hub ───────────────────────────────────
+# For downloading embedding models (READ token sufficient)
+HF_TOKEN=hf_your_huggingface_token_here
 
 # ── Vector Search: Pinecone ───────────────────────────
 PINECONE_API_KEY=your_pinecone_api_key_here
 PINECONE_INDEX_NAME=sdlc-copilot
 
 # ── Document Store: Qdrant Cloud ──────────────────────
-QDRANT_URL=https://your-cluster-id.us-east4-0.gcp.cloud.qdrant.io:6333
+QDRANT_URL=https://your-cluster-id.us-east-1-1.aws.cloud.qdrant.io:6333
 QDRANT_API_KEY=your_qdrant_api_key_here
 QDRANT_COLLECTION_NAME=sdlc_documents
 
@@ -598,19 +734,32 @@ ENVIRONMENT=production
 
 ### Getting API Keys
 
-#### Groq API Key
-1. Visit [console.groq.com](https://console.groq.com)
+#### OpenRouter API Key
+1. Visit [openrouter.ai](https://openrouter.ai)
 2. Sign up for free account
 3. Create API key
 4. Copy to `.env`
+5. Free tier includes Gemma 2 27B model
 
 #### Pinecone API Key
 1. Visit [pinecone.io](https://pinecone.io)
 2. Create free account
-3. Create index
+3. Create serverless index (dimension: 384, metric: cosine)
 4. Copy API key and index name
 
-#### Qdrant API Key
+#### HuggingFace Token (Optional but Recommended)
+1. Visit [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+2. Create new token with **READ** access
+3. Copy token (starts with `hf_`)
+4. Add to `.env`
+
+**Why?**
+- ✅ Faster model downloads
+- ✅ Higher rate limits
+- ✅ No warning messages
+- ✅ READ token is sufficient (no write access needed)
+
+**Note:** The project works without a token, but you'll see warnings and have slower downloads.
 1. Visit [cloud.qdrant.io](https://cloud.qdrant.io)
 2. Create free account
 3. Create cluster
@@ -625,8 +774,8 @@ ENVIRONMENT=production
 #### Terminal 1: Backend
 ```bash
 cd backend
-source .venv/bin/activate
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+source ../.venv/bin/activate
+../.venv/bin/python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Backend: `http://localhost:8000`  
@@ -645,7 +794,7 @@ Frontend: `http://localhost:3000`
 #### Backend
 ```bash
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+../.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 #### Frontend
@@ -718,11 +867,11 @@ pytest tests/
 
 **Solution**: Update DATABASE_URL or start PostgreSQL
 
-#### "GROQ_API_KEY not found"
-- Missing GROQ_API_KEY in .env
+#### "OPENROUTER_API_KEY not found"
+- Missing OPENROUTER_API_KEY in .env
 - Key is invalid or expired
 
-**Solution**: Get new key from [console.groq.com](https://console.groq.com)
+**Solution**: Get new key from [openrouter.ai](https://openrouter.ai)
 
 ### Frontend Issues
 
@@ -739,7 +888,7 @@ pytest tests/
 - Wrong API URL
 
 **Solution**: 
-- Start backend: `python -m uvicorn main:app --reload`
+- Start backend: `../.venv/bin/python -m uvicorn main:app --reload`
 - Check frontend API URL configuration
 
 ### Common Issues
@@ -758,16 +907,18 @@ pytest tests/
 
 ### Planned Features
 
-- [ ] **Multi-Model Support**: Google Gemini, OpenAI GPT-4o
-- [ ] **Jira Integration**: Auto-populate Jira tickets
-- [ ] **Advanced Export**: Word, PDF with custom templates
-- [ ] **Collaborative Editing**: Real-time multi-user editing
-- [ ] **Version Control**: Track document versions
-- [ ] **Custom Prompts**: User-defined generation templates
-- [ ] **Analytics Dashboard**: Usage metrics and insights
-- [ ] **Refresh Tokens**: Extended session management
-- [ ] **User Registration**: Self-service signup
-- [ ] **Role Management**: Custom roles and permissions
+- Multi-Model Support: Google Gemini, OpenAI GPT-4o, Anthropic Claude
+- Jira Integration: Auto-populate Jira tickets
+- Advanced Export: Word, PDF with custom templates
+- Collaborative Editing: Real-time multi-user editing
+- Version Control: Track document versions
+- Custom Prompts: User-defined generation templates
+- Analytics Dashboard: Usage metrics and insights
+- Refresh Tokens: Extended session management
+- User Registration: Self-service signup
+- Role Management: Custom roles and permissions
+- Document Comparison: Side-by-side version comparison
+- Template Library: Pre-built document templates
 
 ### Roadmap
 
@@ -815,14 +966,72 @@ This project is developed for internal SDLC automation. All rights reserved.
 
 ## Project Status
 
-✅ **Production Ready**
+Production Ready
 
 - JWT Authentication: Implemented
-- Database: Configured (PostgreSQL)
+- Database: Configured (PostgreSQL on Render)
+- Vector Search: Pinecone Serverless
+- Document Store: Qdrant Cloud
+- LLM: OpenRouter Gemma 2 27B (16K context)
+- Session Isolation: Complete data separation
 - API: Fully functional
 - Frontend: Responsive UI
 - Testing: Comprehensive test suite
 - Documentation: Complete
 
-**Last Updated**: April 15, 2026  
-**Version**: 1.0.0
+**Last Updated**: April 20, 2026  
+**Version**: 2.1.0
+
+---
+
+## Recent Updates & Improvements
+
+### April 20, 2026 - v2.1.1 (Maintenance Release)
+
+#### Deprecation Fixes ✅
+- **Fixed Python 3.12+ compatibility**: Updated `datetime.utcnow` to `datetime.now(timezone.utc)` in all models
+- **Fixed Pydantic v2 compatibility**: Migrated from `class Config` to `model_config = ConfigDict()`
+- **Fixed SQLAlchemy 2.0 compatibility**: Migrated from `declarative_base()` to `DeclarativeBase` class
+- **Result**: 100% compliant with Python 3.12+, Pydantic 2.x, and SQLAlchemy 2.0
+
+#### HuggingFace Integration ✅
+- **Added HF_TOKEN support**: Faster model downloads and higher rate limits
+- **Token type**: READ token (sufficient for downloading embedding models)
+- **Benefit**: No more "unauthenticated requests" warnings
+
+#### Database Architecture ✅
+- **Removed local databases**: Deleted `sql_app.db` (132 KB) and `chroma_db/` (556 KB)
+- **100% cloud-native**: All data stored in PostgreSQL (Render), Pinecone, and Qdrant Cloud
+- **Benefits**: 
+  - Zero local disk usage for databases
+  - Reduced processor load (all DB operations handled by cloud)
+  - Better performance and automatic backups
+
+#### Documentation ✅
+- **New**: `DEPRECATION_AUDIT_REPORT.md` - Complete deprecation audit
+- **New**: `DEPRECATION_FIXES_SUMMARY.md` - Quick reference of all fixes
+- **New**: `LOCAL_DB_CLEANUP.md` - Database cleanup documentation
+- **Updated**: README.md with latest architecture and configuration
+
+### v2.1.0 - MCP Integration
+
+### v2.1.0 - MCP Integration
+
+#### Key Features
+#### Key Features
+- **MCP Multi-Agent Pipeline**: Integrated 5 specialized AI agents for comprehensive document processing
+- **Advanced Document Analysis**: Extract requirements, tables, business logic, and change requests
+- **Professional Output**: Generate formatted DOCX documents with proper styling
+- **Intermediate Transparency**: Access all 7 intermediate JSON outputs
+- **Quality Validation**: Automatic document consistency and completeness checks
+- **Multiple Delivery Modes**: Download, API response, webhook, and email options
+
+### v2.0.0 - OpenRouter Migration
+
+- Switched from Groq to OpenRouter for better model selection
+- Increased context window from 8K to 16K tokens
+- Implemented session-based document filtering
+- Enhanced chunk size (3000 chars) for better context
+- Increased retrieval documents (30 vs 20) for comprehensive responses
+- Fixed embeddings model configuration
+- Improved document generation quality

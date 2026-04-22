@@ -28,6 +28,15 @@ node_modules/
 # Environment files
 .env
 .env.local
+.env.*
+.envrc
+
+# Secrets and certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
 
 # OS files
 .DS_Store
@@ -35,8 +44,21 @@ Thumbs.db
 
 # VS Code specific
 .vscode/
+.idea/
 
 # Static and temporary folders
 backend/uploaded_docs/
 frontend/out/
 /tmp/
+
+# Python/test/build caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Temporary editor files
+*.swp
+*.swo
+*~

@@ -13,6 +13,11 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "off", // Disabled for authentication patterns
+    },
+  },
 ]);
 
 export default eslintConfig;

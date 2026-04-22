@@ -16,11 +16,11 @@ interface FileItem {
 
 interface ReferencePanelProps {
   sessionId: string | null;
+  onDocumentsChange?: (hasDocuments: boolean) => void;
 }
 
-export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
+export default function ReferencePanel({ sessionId, onDocumentsChange }: ReferencePanelProps) {
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<{
     docId: string;
@@ -35,20 +35,22 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
   const fetchDocuments = useCallback(async () => {
     if (!sessionId) {
       setFiles([]);
+      onDocumentsChange?.(false);
       return;
     }
     try {
       const response = await axios.get(`http://127.0.0.1:8000/api/documents/list?session_id=${sessionId}`);
-      const documents = response.data.documents.map((doc: any) => ({
+      const documents = response.data.documents.map((doc: { id: string; filename: string }) => ({
         id: doc.id,
         name: doc.filename,
         status: 'done' as const,
         feedback: { rating: null }
       }));
       setFiles(documents);
+      onDocumentsChange?.(documents.length > 0);
       
       // Fetch feedback for each document
-      documents.forEach(async (doc) => {
+      documents.forEach(async (doc: { id: string }) => {
         try {
           const feedbackRes = await axios.get(
             `http://127.0.0.1:8000/api/documents/${doc.id}/feedback/summary`
@@ -65,14 +67,14 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
                 }
               : f
           ));
-        } catch (error) {
+        } catch {
           // No feedback yet, that's fine
         }
       });
     } catch (error) {
       console.error("Failed to fetch documents", error);
     }
-  }, [sessionId]);
+  }, [sessionId, onDocumentsChange]);
 
   useEffect(() => {
     fetchDocuments();
@@ -107,7 +109,6 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
     const tempId = `temp-${Date.now()}`;
     const newFile = { id: tempId, name: file.name, status: 'uploading' as const, feedback: { rating: null } };
     setFiles(prev => [...prev, newFile]);
-    setIsUploading(true);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -124,13 +125,14 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
         status: 'done', 
         feedback: { rating: null }
       } : f));
-    } catch (error: any) {
+      onDocumentsChange?.(true);
+    } catch (error) {
       console.error("Upload failed", error);
-      const errorMsg = error.response?.data?.detail || "Upload failed";
+      const errorMsg = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Upload failed"
+        : "Upload failed";
       setUploadError(errorMsg);
       setFiles(prev => prev.filter(f => f.id !== tempId)); 
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -141,6 +143,8 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
     try {
       await axios.delete(`http://127.0.0.1:8000/api/documents/${fileId}`);
       setFiles(prev => prev.filter(f => f.id !== fileId));
+      const remainingFiles = files.filter(f => f.id !== fileId);
+      onDocumentsChange?.(remainingFiles.length > 0);
     } catch (error) {
       console.error("Failed to delete file", error);
       alert("Failed to delete file");
@@ -393,7 +397,7 @@ export default function ReferencePanel({ sessionId }: ReferencePanelProps) {
 
             {/* Info */}
             <p className="text-xs text-neutral-500 mt-4 italic">
-              If you select "Needs Improvement", AI will analyze the document and provide detailed suggestions for enhancement.
+              If you select &quot;Needs Improvement&quot;, AI will analyze the document and provide detailed suggestions for enhancement.
             </p>
           </div>
         </div>

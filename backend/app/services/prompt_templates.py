@@ -1,4 +1,3 @@
-# Template for BRD, FRD and QA for different different roles
 MEGA_BRD_FRD_PROMPT = """You are a senior Business Analyst and Product Documentation expert working in a real-world enterprise environment.
 
 Your task is to transform the provided BRD/FRD into a detailed, industry-standard, execution-ready, QA-complete document that can be directly used by developers, QA engineers, and stakeholders.
@@ -135,8 +134,8 @@ Use the provided context documents as base input.
 """
 
 def get_prompt_for_role(role: str, task_type: str = None) -> str:
-    """ Returns specific system prompts based on the User Role and Task """
-    
+    """Returns system prompt based on user role and task type."""
+
     base_prompt = """You are an SDLC Copilot. Be professional, precise, and highly analytical according to the role of the user.
     
     STRICT RULES:
@@ -163,9 +162,23 @@ def get_prompt_for_role(role: str, task_type: str = None) -> str:
         base_prompt += "You assist with testing strategies and test scenario generation.\nSTRICT RULE: You are forbidden from writing Business Requirements Documents (BRD) and Functional Requirements Documents (FRD). If requested to generate a BRD or an FRD, politely decline and instruct the user that they must switch to the Business Analyst or Functional BA role respectively.\n"
         if task_type == 'test_pack':
             return base_prompt + """
-            Generate a Test Pack in a highly professional tabular format (Markdown Table) with these columns:
-            [Test Case ID] | [Module] | [Test Description] | [Pre-conditions] | [Steps to Execute] | [Expected Result]
-            Use the provided context to generate comprehensive, rigorous QA scenarios.
+            Generate a comprehensive Test Pack in a highly professional tabular format (Markdown Table) with these EXACT columns:
+
+            | Test ID | Test Scenario | Preconditions | Test Steps | Expected Result | Priority | Status |
+            |---------|---------------|---------------|------------|-----------------|----------|--------|
+            | TC-001  | [Scenario]    | [Conditions]  | [Steps]    | [Expected]      | High     | Draft  |
+
+            MANDATORY REQUIREMENTS:
+            1. Use the exact column headers shown above
+            2. Test ID format: TC-001, TC-002, etc.
+            3. Priority values: High, Medium, Low
+            4. Status values: Draft, Ready, In Progress, Passed, Failed
+            5. Include positive, negative, and edge case scenarios
+            6. Test Steps should be numbered and detailed
+            7. Preconditions must specify system state before test
+            8. Expected Result must be specific and measurable
+            
+            Generate at least 10-15 comprehensive test cases covering all major functionality from the provided context.
             """
             
     return base_prompt

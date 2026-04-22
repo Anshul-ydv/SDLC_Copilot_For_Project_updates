@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MessageSquare, Plus, Clock, ChevronRight, X } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { MessageSquare, Plus, Clock, X } from "lucide-react";
 import axios from "axios";
 import clsx from "clsx";
 
@@ -24,23 +24,29 @@ export default function Sidebar({ userId, role, activeSessionId, onSelectSession
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await axios.get(`http://127.0.0.1:8000/api/chat/sessions?user_id=${userId}`);
-      setSessions(response.data);
+      const fetchedSessions = response.data;
+      setSessions(fetchedSessions);
+      
+      // TC-UI-024: Session limit warning (200 sessions)
+      if (fetchedSessions.length >= 200) {
+        alert("Session limit reached (200 active sessions). Consider deleting older sessions to maintain performance.");
+      }
     } catch (error) {
       console.error("Failed to fetch sessions", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (userId) {
       fetchSessions();
     }
-  }, [userId]);
+  }, [userId, fetchSessions]);
 
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
@@ -73,6 +79,11 @@ export default function Sidebar({ userId, role, activeSessionId, onSelectSession
         <div className="flex items-center gap-2 px-3 mb-4 text-xs font-semibold text-neutral-500 uppercase tracking-widest">
           <Clock className="w-3.5 h-3.5" />
           Recent History
+          {sessions.length >= 200 && (
+            <span className="ml-auto text-[10px] bg-amber-900/30 text-amber-400 px-2 py-0.5 rounded-full border border-amber-800/50">
+              Limit Reached
+            </span>
+          )}
         </div>
 
         {isLoading ? (

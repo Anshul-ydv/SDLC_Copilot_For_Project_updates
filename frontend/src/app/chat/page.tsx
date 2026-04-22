@@ -10,12 +10,10 @@ export default function ChatDashboard() {
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [hasDocuments, setHasDocuments] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
     // Check authentication
     const savedToken = localStorage.getItem("token");
     const savedRole = localStorage.getItem("role");
@@ -24,13 +22,12 @@ export default function ChatDashboard() {
     if (!savedToken || !savedRole || !savedUserId) {
       router.push("/");
     } else {
-      setToken(savedToken);
       setRole(savedRole);
       setUserId(savedUserId);
     }
   }, [router]);
 
-  if (!mounted || !role || !userId) return <div className="min-h-screen bg-neutral-900 text-white flex items-center justify-center">Loading Workspace...</div>;
+  if (!role || !userId) return <div className="min-h-screen bg-neutral-900 text-white flex items-center justify-center">Loading Workspace...</div>;
 
   return (
     <div className="flex h-screen bg-neutral-900 text-white font-sans overflow-hidden">
@@ -50,6 +47,7 @@ export default function ChatDashboard() {
           sessionId={activeSessionId}
           onSessionCreated={(id) => setActiveSessionId(id)}
           onResetSession={() => setActiveSessionId(null)}
+          onDocumentsCheck={(hasDocuments) => setHasDocuments(hasDocuments)}
         />
       </div>
 
@@ -61,7 +59,10 @@ export default function ChatDashboard() {
         </div>
         
         <div className="flex-1 overflow-y-auto">
-          <ReferencePanel sessionId={activeSessionId} />
+          <ReferencePanel 
+            sessionId={activeSessionId} 
+            onDocumentsChange={(hasDocuments) => setHasDocuments(hasDocuments)}
+          />
         </div>
         
         <div className="p-4 border-t border-neutral-800">

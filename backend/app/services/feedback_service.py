@@ -1,49 +1,35 @@
-# Feedback Service for QA Document Quality Assessment
 import os
 from langchain_groq import ChatGroq
 
+
 class FeedbackService:
-    """Service for generating QA feedback and improvement suggestions for FRD/BRD documents."""
-    
     def __init__(self):
         try:
             self.llm = ChatGroq(temperature=0.3, model_name="llama-3.3-70b-versatile")
         except Exception as e:
             print(f"Warning: LLM initialization failed: {e}")
             self.llm = None
-    
+
     def generate_improvement_suggestions(self, document_content: str, doc_type: str, feedback_text: str = "") -> str:
-        """
-        Generate detailed improvement suggestions for a FRD or BRD document when marked as thumbs down.
-        
-        Args:
-            document_content (str): The actual content of the FRD/BRD document
-            doc_type (str): Type of document - 'FRD' or 'BRD'
-            feedback_text (str): Optional user feedback
-            
-        Returns:
-            str: Detailed improvement suggestions
-        """
+        """Generate improvement suggestions for a document marked as thumbs down."""
         if not self.llm:
             return "LLM service unavailable. Please try again later."
-        
+
         if doc_type.upper() == "FRD":
             prompt = self._get_frd_improvement_prompt()
         elif doc_type.upper() == "BRD":
             prompt = self._get_brd_improvement_prompt()
         else:
             prompt = self._get_generic_improvement_prompt()
-        
-        # Limit content to 5000 chars to avoid token overflow
+
         truncated_content = document_content[:5000]
-        
         full_prompt = (
             f"Document Type: {doc_type}\n"
             f"User Feedback: {feedback_text if feedback_text else 'No specific feedback provided'}\n\n"
             f"Document Content:\n{truncated_content}\n\n"
             f"{prompt}"
         )
-        
+
         try:
             response = self.llm.invoke(full_prompt)
             return response.content
@@ -52,7 +38,6 @@ class FeedbackService:
             return f"Error generating suggestions: {str(e)}"
     
     def _get_frd_improvement_prompt(self) -> str:
-        """Return improvement prompt specific to FRD documents."""
         return """As a senior QA and Documentation expert, analyze this Functional Requirements Document (FRD) and provide:
 
 1. **Critical Issues** (Must fix before approval)
@@ -85,7 +70,6 @@ class FeedbackService:
 Format your response clearly with headers and bullet points for easy action."""
 
     def _get_brd_improvement_prompt(self) -> str:
-        """Return improvement prompt specific to BRD documents."""
         return """As a senior Business Analyst and Documentation expert, analyze this Business Requirements Document (BRD) and provide:
 
 1. **Strategic Issues** (Critical for business alignment)
@@ -121,7 +105,6 @@ Format your response clearly with headers and bullet points for easy action."""
 Format your response clearly with headers and bullet points for easy action."""
 
     def _get_generic_improvement_prompt(self) -> str:
-        """Return generic improvement prompt."""
         return """As a senior QA and Documentation expert, analyze this document and provide:
 
 1. **Critical Issues** (Must fix)
@@ -149,11 +132,9 @@ Format your response clearly with headers and bullet points for easy action."""
 Format your response clearly with headers and bullet points."""
 
 
-# Singleton instance
 _feedback_service = None
 
 def get_feedback_service() -> FeedbackService:
-    """Get or create feedback service instance."""
     global _feedback_service
     if _feedback_service is None:
         _feedback_service = FeedbackService()

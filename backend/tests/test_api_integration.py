@@ -208,3 +208,57 @@ def test_api_026_health_check(client):
     response = root_client.get("/")
     assert response.status_code == 200
     assert "Welcome" in response.json()["message"]
+
+def test_api_027_concurrent_requests():
+    """TC-API-027 — API Concurrent Request Integrity"""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    
+    def send_query(session_id: str, query: str, user_id: str):
+        """Send a query to a specific session"""
+        with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+            response = client.post("/chat/query", json={
+                "user_id": user_id,
+                "session_id": session_id,
+                "role": "Business Analyst (BA)",
+                "query": query
+            })
+            return response.json()
+    
+    # Create 5 different sessions
+    sessions = []
+    with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+        for i in range(5):
+            sess_resp = client.post("/chat/sessions", json={
+                "user_id": f"user_{i}",
+                "role": "Business Analyst (BA)",
+                "title": f"Concurrent Test Session {i}"
+            })
+            sessions.append((sess_resp.json()["id"], f"user_{i}"))
+    
+    # Fire 5 simultaneous requests to different sessions
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [
+            executor.submit(send_query, session_id, f"Query {i}", user_id)
+            for i, (session_id, user_id) in enumerate(sessions)
+        ]
+        results = [f.result() for f in futures]
+    
+    # Verify each session has correct response
+    assert len(results) == 5
+    for i, result in enumerate(results):
+        assert "response" in result
+        assert result["session_id"] == sessions[i][0]
+    
+    # Verify no cross-session data bleed by checking message history
+    with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+        for i, (session_id, user_id) in enumerate(sessions):
+            messages_resp = client.get(f"/chat/sessions/{session_id}/messages")
+            messages = messages_resp.json()
+            
+            # Should have exactly 2 messages: user query + assistant response
+            assert len(messages) == 2
+            assert messages[0]["role"] == "user"
+            assert f"Query {i}" in messages[0]["content"]
+            assert messages[1]["role"] == "assistant"
+

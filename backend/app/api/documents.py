@@ -85,7 +85,7 @@ async def upload_document(
         db.commit()
 
         try:
-            rag_service.process_file(file_path, file.filename)
+            rag_service.process_file(file_path, file.filename, session_id=session_id)
         except Exception as e:
             db.rollback()
             if os.path.exists(file_path):
