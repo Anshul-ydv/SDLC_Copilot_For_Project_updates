@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import timedelta
 from ..utils.auth_utils import (
     create_access_token,
@@ -17,12 +17,15 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    access_token: str
+    access_token: str = Field(alias="token")
     token_type: str
     role: str
     user_id: str
     email: str
     expires_in: int
+    
+    class Config:
+        populate_by_name = True
 
 
 class UserInfoResponse(BaseModel):
@@ -50,14 +53,14 @@ MOCK_USERS = {
 }
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=LoginResponse, response_model_by_alias=True)
 def login(request: LoginRequest):
     """Authenticate user and return JWT access token."""
     user = MOCK_USERS.get(request.email)
     if not user or user["password"] != request.password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

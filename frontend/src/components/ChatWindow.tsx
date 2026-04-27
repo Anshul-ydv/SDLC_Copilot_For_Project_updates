@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Send, Bot, User, Sparkles, FileDown, Loader2, Eye, CheckCircle2, XCircle, RefreshCw, Copy, Check } from "lucide-react";
-import axios from "axios";
+import axios from "@/lib/axios";
 import clsx from "clsx";
 
 interface Message {
@@ -40,7 +40,7 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
   const defaultGreeting: Message = useMemo(() => ({
     id: 'welcome',
     role: 'assistant' as const,
-    content: `Hello! I am your SDLC Copilot. Since you are logged in as a ${role}, my responses are tuned to your workflow.\n\nPlease upload reference documents in the left panel, then ask me a question or use one of the quick actions below to generate a document.`
+    content: `Hello! I am your SDLC Copilot. Since you are logged in as a ${role}, my responses are tuned to your workflow.\n\nPlease upload reference documents in the right panel, then ask me a question or use one of the quick actions below to generate a document.`
   }), [role]);
 
   // 2. Load History when sessionId changes
@@ -152,9 +152,13 @@ export default function ChatWindow({ role, sessionId, onSessionCreated, onResetS
 
     try {
       // 2. Use FETCH for Streaming instead of Axios
+      const token = localStorage.getItem("token");
       const response = await fetch("http://127.0.0.1:8000/api/chat/query/stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           user_id: localStorage.getItem("user_id"),
           session_id: currentSessionId,

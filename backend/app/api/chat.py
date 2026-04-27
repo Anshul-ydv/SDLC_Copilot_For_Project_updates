@@ -8,6 +8,9 @@ from app.database import get_db
 from app import models
 from datetime import datetime
 from app.services.pdf_service import generate_pdf_from_text
+from app.utils.security_utils import validate_query_safety, sanitize_query
+from app.utils.rbac_utils import validate_task_access, Permission, get_role_capabilities
+from app.utils.auth_utils import get_current_user
 from collections import defaultdict
 import os
 
@@ -74,7 +77,11 @@ class PDFRequest(BaseModel):
 
 
 @router.get("/sessions", response_model=List[SessionSchema])
-async def get_sessions(user_id: str, db: Session = Depends(get_db)):
+async def get_sessions(user_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    # Verify user can only access their own sessions
+    if current_user.get("sub") != user_id:
+        raise HTTPException(status_code=403, detail="Access denied: You can only view your own sessions")
+    
     return db.query(models.ChatSession).filter(
         models.ChatSession.user_id == user_id,
         models.ChatSession.deleted_at.is_(None)
@@ -82,12 +89,24 @@ async def get_sessions(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/sessions/{session_id}/messages", response_model=List[MessageSchema])
-async def get_session_messages(session_id: str, db: Session = Depends(get_db)):
+async def get_session_messages(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    # Verify session ownership
+    session = db.query(models.ChatSession).filter(models.ChatSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if session.user_id != current_user.get("sub"):
+        raise HTTPException(status_code=403, detail="Access denied: This session does not belong to you")
+    
     return db.query(models.ChatMessage).filter(models.ChatMessage.session_id == session_id).order_by(models.ChatMessage.created_at.asc()).all()
 
 
 @router.post("/sessions", response_model=SessionSchema)
-async def create_session(request: CreateSessionRequest, db: Session = Depends(get_db)):
+async def create_session(request: CreateSessionRequest, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    # Verify user can only create sessions for themselves
+    if current_user.get("sub") != request.user_id:
+        raise HTTPException(status_code=403, detail="Access denied: You can only create sessions for yourself")
+    
     db_session = models.ChatSession(
         title=request.title,
         role=request.role,
@@ -100,11 +119,16 @@ async def create_session(request: CreateSessionRequest, db: Session = Depends(ge
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str, db: Session = Depends(get_db)):
+async def delete_session(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Soft delete a chat session (sets deleted_at timestamp)."""
     session = db.query(models.ChatSession).filter(models.ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Verify session ownership
+    if session.user_id != current_user.get("sub"):
+        raise HTTPException(status_code=403, detail="Access denied: This session does not belong to you")
+    
     try:
         # Soft delete: set deleted_at timestamp instead of removing from DB
         session.deleted_at = datetime.now()
@@ -116,16 +140,53 @@ async def delete_session(session_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/query", response_model=ChatResponse)
-async def process_chat(request: ChatRequest, db: Session = Depends(get_db)):
+async def process_chat(request: ChatRequest, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Main endpoint for chatting and document generation."""
     try:
+        # Verify session ownership
+        session = db.query(models.ChatSession).filter(models.ChatSession.id == request.session_id).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        if session.user_id != current_user.get("sub"):
+            raise HTTPException(status_code=403, detail="Access denied: This session does not belong to you")
+        
         if not request.query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty or whitespace only")
         
-        user_msg = models.ChatMessage(session_id=request.session_id, role="user", content=request.query)
+        # Validate query safety (prompt injection prevention)
+        is_safe, error_msg = validate_query_safety(request.query)
+        if not is_safe:
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Sanitize query
+        sanitized_query = sanitize_query(request.query)
+        
+        # Validate RBAC access for task type
+        is_allowed, rbac_message, permission = validate_task_access(request.role, request.task_type)
+        if not is_allowed:
+            # Return polite refusal as 200 response instead of 403 error
+            user_msg = models.ChatMessage(session_id=request.session_id, role="user", content=sanitized_query)
+            db.add(user_msg)
+            
+            bot_msg = models.ChatMessage(session_id=request.session_id, role="assistant", content=rbac_message)
+            db.add(bot_msg)
+            db.commit()
+
+            return ChatResponse(
+                response=rbac_message,
+                source_documents=["None"],
+                session_id=request.session_id
+            )
+        
+        user_msg = models.ChatMessage(session_id=request.session_id, role="user", content=sanitized_query)
         db.add(user_msg)
         
-        rag_response = rag_service.generate_answer(request.query, request.role, request.session_id, request.task_type)
+        rag_response = rag_service.generate_answer(sanitized_query, request.role, request.session_id, request.task_type)
+        
+        # Add RBAC note for partial access
+        if permission == Permission.PARTIAL and rbac_message:
+            rag_response = f"{rbac_message}\n\n{rag_response}"
 
         bot_msg = models.ChatMessage(session_id=request.session_id, role="assistant", content=rag_response)
         db.add(bot_msg)
@@ -136,14 +197,24 @@ async def process_chat(request: ChatRequest, db: Session = Depends(get_db)):
             source_documents=request.context_files if request.context_files else ["None"],
             session_id=request.session_id
         )
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/query/stream")
-async def process_chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
+async def process_chat_stream(request: ChatRequest, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Streaming endpoint for real-time document generation with rate limiting."""
+    
+    # Verify session ownership
+    session = db.query(models.ChatSession).filter(models.ChatSession.id == request.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if session.user_id != current_user.get("sub"):
+        raise HTTPException(status_code=403, detail="Access denied: This session does not belong to you")
 
     if active_sessions[request.session_id]:
         raise HTTPException(
@@ -155,12 +226,31 @@ async def process_chat_stream(request: ChatRequest, db: Session = Depends(get_db
         full_response = []
         try:
             active_sessions[request.session_id] = True
+            
+            # Validate query safety (prompt injection prevention)
+            is_safe, error_msg = validate_query_safety(request.query)
+            if not is_safe:
+                yield f"Error: {error_msg}"
+                return
+            
+            # Validate RBAC access for task type
+            is_allowed, rbac_message, permission = validate_task_access(request.role, request.task_type)
+            if not is_allowed:
+                yield f"Access Denied: {rbac_message}"
+                return
+            
+            # Sanitize query
+            sanitized_query = sanitize_query(request.query)
 
-            user_msg = models.ChatMessage(session_id=request.session_id, role="user", content=request.query)
+            user_msg = models.ChatMessage(session_id=request.session_id, role="user", content=sanitized_query)
             db.add(user_msg)
             db.commit()
+            
+            # Add RBAC note for partial access
+            if permission == Permission.PARTIAL and rbac_message:
+                yield f"{rbac_message}\n\n"
 
-            for chunk in rag_service.stream_answer(request.query, request.role, request.session_id, request.task_type):
+            for chunk in rag_service.stream_answer(sanitized_query, request.role, request.session_id, request.task_type):
                 full_response.append(chunk)
                 yield chunk
 
@@ -196,4 +286,17 @@ async def generate_pdf_endpoint(request: PDFRequest):
         import traceback
         error_detail = f"PDF generation error: {str(e)}\n{traceback.format_exc()}"
         print(error_detail)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/role-capabilities")
+async def get_role_capabilities_endpoint(role: str):
+    """Get all capabilities for a specific role."""
+    try:
+        capabilities = get_role_capabilities(role)
+        return {
+            "role": role,
+            "capabilities": capabilities
+        }
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { MessageSquare, Plus, Clock, X } from "lucide-react";
-import axios from "axios";
+import axios from "@/lib/axios";
 import clsx from "clsx";
 
 interface Session {

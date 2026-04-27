@@ -5,7 +5,10 @@ import os
 from app.services.rag_service import rag_service
 from app.services.feedback_service import get_feedback_service
 from app.database import get_db
-from app.models import Document, DocumentFeedback
+from app.models import Document, DocumentFeedback, ChatSession
+import app.models as models
+from app.utils.rbac_utils import can_apply_priority_tag
+from app.utils.auth_utils import get_current_user
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -35,10 +38,26 @@ class FeedbackResponse(BaseModel):
 async def upload_document(
     file: UploadFile = File(...), 
     session_id: str = Form(...),
-    db: Session = Depends(get_db)
+    priority: str = Form("Medium"),
+    user_role: str = Form(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Endpoint to upload PDF, DOCX, or CSV files for RAG with metadata tracking."""
     try:
+        # Verify session ownership
+        session = db.query(models.ChatSession).filter(models.ChatSession.id == session_id).first()
+        if session and session.user_id != current_user.get("sub"):
+            raise HTTPException(status_code=403, detail="Access denied: This session does not belong to you")
+        
+        # Validate priority tag permission (QA only)
+        if priority != "Medium" and user_role:
+            if not can_apply_priority_tag(user_role):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only QA / Tester role can apply priority tags (High/Low). Documents will be uploaded with Medium priority."
+                )
+        
         file_ext = os.path.splitext(file.filename)[1].lstrip(".").lower()
         allowed_extensions = {'pdf', 'docx', 'csv', 'doc', 'txt'}
         if file_ext not in allowed_extensions:
@@ -85,7 +104,7 @@ async def upload_document(
         db.commit()
 
         try:
-            rag_service.process_file(file_path, file.filename, session_id=session_id)
+            rag_service.process_file(file_path, file.filename, session_id=session_id, priority=priority)
         except Exception as e:
             db.rollback()
             if os.path.exists(file_path):
@@ -102,16 +121,23 @@ async def upload_document(
             "file_type": file_ext,
             "status": "Successfully uploaded and indexed in knowledge base",
         }
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/list")
-async def list_documents(session_id: str = None, db: Session = Depends(get_db)):
+async def list_documents(session_id: str = None, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Returns a list of uploaded reference documents with metadata."""
     query = db.query(Document)
     if session_id:
+        # Verify session ownership
+        session = db.query(models.ChatSession).filter(models.ChatSession.id == session_id).first()
+        if session and session.user_id != current_user.get("sub"):
+            raise HTTPException(status_code=403, detail="Access denied: This session does not belong to you")
+        
         query = query.filter(Document.session_id == session_id)
         
     docs = query.order_by(Document.upload_date.desc()).all()
@@ -131,11 +157,17 @@ async def list_documents(session_id: str = None, db: Session = Depends(get_db)):
 
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: str, db: Session = Depends(get_db)):
+async def delete_document(document_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Delete a document and its associated file."""
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Verify session ownership if document has session_id
+    if doc.session_id:
+        session = db.query(models.ChatSession).filter(models.ChatSession.id == doc.session_id).first()
+        if session and session.user_id != current_user.get("sub"):
+            raise HTTPException(status_code=403, detail="Access denied: This document does not belong to you")
         
     try:
         if os.path.exists(doc.file_path):

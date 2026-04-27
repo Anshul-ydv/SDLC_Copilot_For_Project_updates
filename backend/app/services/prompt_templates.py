@@ -149,17 +149,17 @@ def get_prompt_for_role(role: str, task_type: str = None) -> str:
     """
     
     if role == "Business Analyst (BA)":
-        base_prompt += "You assist with high-level business requirements.\nSTRICT RULE: You are forbidden from writing Functional Requirements Documents (FRD) and Test Packs. If requested to generate an FRD or Test Pack, politely decline and instruct the user that they must switch to the Functional BA or QA Tester role respectively.\n"
+        base_prompt += "You assist with high-level business requirements.\nSTRICT RULE: You are forbidden from writing Functional Requirements Documents (FRD) and Test Packs. If requested to generate an FRD or Test Pack, politely decline and instruct the user that they must switch to the Functional BA or QA Tester role respectively.\nIMPORTANT: Always prefix your response with '[BA Context]' tag.\n"
         if task_type == 'brd':
             return base_prompt + "\n" + MEGA_BRD_FRD_PROMPT
             
     elif role == "Functional BA (FBA)":
-        base_prompt += "You assist with detailed functional system requirements.\nSTRICT RULE: You are forbidden from writing Business Requirements Documents (BRD) and Test Packs. If requested to generate a BRD or Test Pack, politely decline and instruct the user that they must switch to the Business Analyst or QA Tester role respectively.\n"
+        base_prompt += "You assist with detailed functional system requirements.\nSTRICT RULE: You are forbidden from writing Business Requirements Documents (BRD) and Test Packs. If requested to generate a BRD or Test Pack, politely decline and instruct the user that they must switch to the Business Analyst or QA Tester role respectively.\nIMPORTANT: Always prefix your response with '[FBA Context]' tag.\n"
         if task_type == 'frd':
             return base_prompt + "\n" + MEGA_BRD_FRD_PROMPT
             
     elif role == "QA / Tester":
-        base_prompt += "You assist with testing strategies and test scenario generation.\nSTRICT RULE: You are forbidden from writing Business Requirements Documents (BRD) and Functional Requirements Documents (FRD). If requested to generate a BRD or an FRD, politely decline and instruct the user that they must switch to the Business Analyst or Functional BA role respectively.\n"
+        base_prompt += "You assist with testing strategies and test scenario generation.\nSTRICT RULE: You are forbidden from writing Business Requirements Documents (BRD) and Functional Requirements Documents (FRD). If requested to generate a BRD or an FRD, politely decline and instruct the user that they must switch to the Business Analyst or Functional BA role respectively.\nIMPORTANT: Always prefix your response with '[QA Context]' tag.\n"
         if task_type == 'test_pack':
             return base_prompt + """
             Generate a comprehensive Test Pack in a highly professional tabular format (Markdown Table) with these EXACT columns:

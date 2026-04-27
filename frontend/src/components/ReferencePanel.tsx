@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { UploadCloud, FileText, CheckCircle2, Loader2, Link, X, ThumbsUp, ThumbsDown } from "lucide-react";
-import axios from "axios";
+import axios from "@/lib/axios";
 
 interface FileItem {
   id?: string;

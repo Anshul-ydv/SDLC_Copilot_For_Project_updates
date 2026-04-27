@@ -1,5 +1,7 @@
 # RAG Service
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -8,6 +10,9 @@ from app.services.prompt_templates import get_prompt_for_role
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Timeout configuration
+INFERENCE_TIMEOUT_SECONDS = 30
 
 # ── Load API Keys from .env ───────────────────────────────────────────────────
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
@@ -116,6 +121,32 @@ class RAGService:
             chunk_overlap=400,
             separators=["\n\n", "\n", " ", ""]
         )
+        
+        # Thread pool for timeout handling
+        self.executor = ThreadPoolExecutor(max_workers=4)
+
+    def _invoke_with_timeout(self, prompt: str, timeout: int = INFERENCE_TIMEOUT_SECONDS):
+        """
+        Invoke LLM with timeout protection.
+        
+        Args:
+            prompt: The prompt to send to LLM
+            timeout: Timeout in seconds (default 30)
+            
+        Returns:
+            LLM response
+            
+        Raises:
+            TimeoutError: If inference takes longer than timeout
+        """
+        try:
+            future = self.executor.submit(self.llm.invoke, prompt)
+            result = future.result(timeout=timeout)
+            return result
+        except FuturesTimeoutError:
+            raise TimeoutError(f"AI model inference timed out after {timeout} seconds. Please try again or contact your administrator.")
+        except Exception as e:
+            raise Exception(f"Error during inference: {str(e)}")
 
     def process_file(self, file_path: str, filename: str, session_id: str = None, priority: str = "Medium"):
         """Extract, chunk, and store document in Pinecone and Qdrant."""
@@ -221,8 +252,12 @@ class RAGService:
             context = "\n\n".join([doc.page_content for doc, _ in scored_docs[:30]])
 
             final_prompt = template.format(context=context, question=query)
-            response = self.llm.invoke(final_prompt)
+            
+            # Use timeout-protected invoke
+            response = self._invoke_with_timeout(final_prompt, timeout=INFERENCE_TIMEOUT_SECONDS)
             return response.content if hasattr(response, "content") else str(response)
+        except TimeoutError as e:
+            return f"The AI model is currently unavailable. Please contact your administrator. (Timeout after {INFERENCE_TIMEOUT_SECONDS} seconds)"
         except Exception as e:
             return f"Error in RAG pipeline: {str(e)}"
 
@@ -269,10 +304,29 @@ class RAGService:
 
             final_prompt = template.format(context=context, question=query)
 
+            # Stream with timeout protection
+            start_time = asyncio.get_event_loop().time() if hasattr(asyncio, 'get_event_loop') else 0
+            chunk_count = 0
+            
             for chunk in self.llm.stream(final_prompt):
+                # Check timeout
+                if start_time > 0:
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    if elapsed > INFERENCE_TIMEOUT_SECONDS:
+                        yield f"\n\n[Error: Response generation timed out after {INFERENCE_TIMEOUT_SECONDS} seconds]"
+                        return
+                
                 content = chunk.content if hasattr(chunk, "content") else str(chunk)
                 if content:
+                    chunk_count += 1
                     yield content
+            
+            # If no chunks received within timeout, it's a timeout
+            if chunk_count == 0:
+                yield f"The AI model is currently unavailable. Please contact your administrator."
+                
+        except TimeoutError:
+            yield f"The AI model is currently unavailable. Please contact your administrator. (Timeout after {INFERENCE_TIMEOUT_SECONDS} seconds)"
         except Exception as e:
             yield f"Error in stream: {str(e)}"
 
