@@ -23,7 +23,7 @@ The SDLC Automation Copilot is an enterprise-grade AI-powered platform that revo
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ```bash
 # 1. Clone and setup
