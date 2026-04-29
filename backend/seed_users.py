@@ -21,21 +21,21 @@ def seed_users():
         {
             "id": "u1",
             "username": "ba_user",
-            "email": "ba@hsbc.com",
+            "email": "ba@xyz.com",
             "password": "password123",
             "role": "Business Analyst (BA)"
         },
         {
             "id": "u2",
             "username": "fba_user",
-            "email": "fba@hsbc.com",
+            "email": "fba@xyz.com",
             "password": "password123",
             "role": "Functional BA (FBA)"
         },
         {
             "id": "u3",
             "username": "qa_user",
-            "email": "qa@hsbc.com",
+            "email": "qa@xyz.com",
             "password": "password123",
             "role": "QA / Tester"
         }
@@ -54,9 +54,9 @@ def seed_users():
         
         db.commit()
         print("✓ Successfully seeded 3 mock users:")
-        print("  - ba@hsbc.com (Business Analyst)")
-        print("  - fba@hsbc.com (Functional BA)")
-        print("  - qa@hsbc.com (QA / Tester)")
+        print("  - ba@xyz.com (Business Analyst)")
+        print("  - fba@xyz.com (Functional BA)")
+        print("  - qa@xyz.com (QA / Tester)")
         print("\nPassword for all: password123")
         
     except Exception as e:
