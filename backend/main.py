@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, chat, documents, mcp
+from app.api import auth, chat, documents, mcp, admin
 from app.database import engine
 from app import models
 
@@ -25,6 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(admin.router, tags=["Admin"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat & Generation"])
 app.include_router(mcp.router, prefix="/api/mcp", tags=["MCP Pipeline"])
@@ -38,7 +39,8 @@ def read_root():
             "RAG-powered document generation",
             "MCP multi-agent document processing",
             "Session-based isolation",
-            "Real-time streaming responses"
+            "Real-time streaming responses",
+            "Admin user management"
         ],
         "docs": "/docs"
     }

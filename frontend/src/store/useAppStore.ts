@@ -4,8 +4,9 @@ import { create } from "zustand";
 interface UserState {
   userId: string | null;
   email: string | null;
-  role: string | null;
+  roles: string[] | null;
   token: string | null;
+  isAdmin?: boolean;
 }
 
 interface DocumentMeta {
@@ -37,8 +38,9 @@ interface AppState {
 const EMPTY_USER: UserState = {
   userId: null,
   email: null,
-  role: null,
+  roles: null,
   token: null,
+  isAdmin: false,
 };
 
 // ── Store ───────────────────────────────────────────────────────────────

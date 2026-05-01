@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Integer, JSON
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Integer, JSON, Boolean, ARRAY
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .database import Base
@@ -12,8 +12,10 @@ class User(Base):
     username = Column(String(80), unique=True, nullable=False, index=True)
     email = Column(String(120), unique=True, nullable=False, index=True)
     hashed_password = Column(String(256), nullable=False)
-    role = Column(String(50), nullable=False, default="Business Analyst (BA)")
+    roles = Column(JSON, nullable=False, default=["Business Analyst (BA)"])  # Changed to support multiple roles
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class Document(Base):

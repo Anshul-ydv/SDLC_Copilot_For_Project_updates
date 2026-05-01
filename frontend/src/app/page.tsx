@@ -52,9 +52,9 @@ export default function LoginPage() {
         password,
       });
 
-      // Save token and role to local storage
+      // Save token and roles to local storage
       localStorage.setItem("token", response.data.token);
-      localStorage.setItem("role", response.data.role);
+      localStorage.setItem("roles", JSON.stringify(response.data.roles));
       localStorage.setItem("user_id", response.data.user_id);
 
       // Redirect to chat dashboard
@@ -141,6 +141,11 @@ export default function LoginPage() {
             <li>qa@hsbc.com (QA / Tester)</li>
           </ul>
           <p className="mt-2">Password for all: <strong>password123</strong></p>
+          <hr className="my-3 border-neutral-600" />
+          <p><strong>Admin Account:</strong></p>
+          <p className="mt-1">Email: <strong>admin1@hsbc.com</strong></p>
+          <p>Password: <strong>admin123</strong></p>
+          <p className="mt-2 text-blue-400"><a href="/admin">Go to Admin Portal →</a></p>
         </div>
       </div>
     </div>
