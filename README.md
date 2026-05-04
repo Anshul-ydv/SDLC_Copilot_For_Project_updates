@@ -46,9 +46,11 @@ npm run dev
 
 # 5. Login at http://localhost:3000
 # Email: ba@xyz.com | Password: password123
+# Admin: admin1@hsbc.com | Password: admin123
 ```
 
-**API Docs**: http://localhost:8000/docs
+**API Docs**: http://localhost:8000/docs  
+**Admin Portal**: http://localhost:3000/admin
 
 ---
 
@@ -62,13 +64,14 @@ npm run dev
 6. [System Architecture](#system-architecture)
 7. [Technology Stack](#technology-stack)
 8. [Project Structure](#project-structure)
-9. [API Documentation](#api-documentation)
-10. [Authentication](#authentication)
-11. [Database Setup](#database-setup)
-12. [Configuration](#configuration)
-13. [Running the Application](#running-the-application)
-14. [Troubleshooting](#troubleshooting)
-15. [Future Enhancements](#future-enhancements)
+9. [Admin Dashboard](#admin-dashboard)
+10. [API Documentation](#api-documentation)
+11. [Authentication](#authentication)
+12. [Database Setup](#database-setup)
+13. [Configuration](#configuration)
+14. [Running the Application](#running-the-application)
+15. [Troubleshooting](#troubleshooting)
+16. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -229,6 +232,11 @@ Use test credentials:
 - Email: `ba@xyz.com`
 - Password: `password123`
 
+**Admin Access:**
+- Email: `admin1@hsbc.com`
+- Password: `admin123`
+- Access: http://localhost:3000/admin
+
 ---
 
 ## MCP Multi-Agent Pipeline
@@ -309,33 +317,339 @@ Each agent uses Google Gemma 2 27B IT model with:
 
 ## System Architecture
 
+### High-Level Architecture Diagram
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    User Interface Layer                          │
-│                   (Next.js 16 + React 19)                        │
-│  - Chat Interface  - Document Upload  - Session Management      │
-│  - Reference Panel - Sidebar - Real-time Streaming              │
-└────────────────────────┬────────────────────────────────────────┘
-                         │ REST API + Server-Sent Events (SSE)
-┌────────────────────────▼────────────────────────────────────────┐
-│                  API Layer (FastAPI + Uvicorn)                   │
-│  /api/auth     - JWT Authentication (login, user info)           │
-│  /api/chat     - Sessions, Messages, Streaming Query            │
-│  /api/documents - Upload, List, Delete, Feedback                │
-│  /api/mcp      - Multi-Agent Pipeline Processing                │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-        ┌────────────────┼────────────────┬─────────────────┐
-        │                │                │                 │
-┌───────▼──────┐  ┌──────▼──────┐  ┌────▼──────────┐  ┌───▼────────┐
-│  PostgreSQL  │  │  Pinecone   │  │  Qdrant Cloud │  │ OpenRouter │
-│  (Metadata)  │  │  (Vectors)  │  │  (Documents)  │  │    LLM     │
-│  Users       │  │  Embeddings │  │  Chunks       │  │  Nemotron  │
-│  Sessions    │  │  384-dim    │  │  Storage      │  │  Gemma 2   │
-│  Messages    │  │  Cosine     │  │               │  │            │
-│  Documents   │  │             │  │               │  │            │
-│  Feedback    │  │             │  │               │  │            │
-└──────────────┘  └─────────────┘  └───────────────┘  └────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CLIENT LAYER (Browser)                              │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                    Next.js 16 + React 19 Frontend                    │  │
+│  │                                                                      │  │
+│  │  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐   │  │
+│  │  │  Chat Interface │  │ Admin Dashboard  │  │ Model Management│   │  │
+│  │  │  - Messages     │  │ - User CRUD      │  │ - API Keys      │   │  │
+│  │  │  - Streaming    │  │ - Role Assign    │  │ - Model Config  │   │  │
+│  │  │  - References   │  │ - Test Login     │  │ - Status        │   │  │
+│  │  └─────────────────┘  └──────────────────┘  └─────────────────┘   │  │
+│  │                                                                      │  │
+│  │  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐   │  │
+│  │  │ Document Upload │  │ Session Manager  │  │ Reference Panel │   │  │
+│  │  │ - PDF/DOCX/CSV  │  │ - Create Session │  │ - Show Context  │   │  │
+│  │  │ - Progress      │  │ - List Sessions  │  │ - Display Refs  │   │  │
+│  │  │ - Status        │  │ - Delete Session │  │ - Feedback      │   │  │
+│  │  └─────────────────┘  └──────────────────┘  └─────────────────┘   │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────┬─────────────────────────────────────────────┘
+                                 │
+                    REST API + Server-Sent Events (SSE)
+                                 │
+┌────────────────────────────────▼─────────────────────────────────────────────┐
+│                    API LAYER (FastAPI + Uvicorn)                             │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                      Authentication & Authorization                  │  │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │  │
+│  │  │ /api/auth/login          - User/Admin JWT authentication    │   │  │
+│  │  │ /api/auth/me             - Get current user info            │   │  │
+│  │  │ /api/admin/login         - Admin authentication             │   │  │
+│  │  │ /api/admin/users         - User management (CRUD)           │   │  │
+│  │  │ /api/admin/models        - AI model management              │   │  │
+│  │  └─────────────────────────────────────────────────────────────┘   │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                      Chat & Document Processing                      │  │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │  │
+│  │  │ /api/chat/sessions       - Session management              │   │  │
+│  │  │ /api/chat/query/stream   - Streaming RAG queries           │   │  │
+│  │  │ /api/documents/upload    - Document ingestion              │   │  │
+│  │  │ /api/documents/list      - List documents by session       │   │  │
+│  │  │ /api/documents/feedback  - Submit feedback & suggestions   │   │  │
+│  │  │ /api/mcp/process         - MCP pipeline processing         │   │  │
+│  │  │ /api/mcp/download        - Download MCP outputs            │   │  │
+│  │  └─────────────────────────────────────────────────────────────┘   │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                      Service Layer                                   │  │
+│  │  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐   │  │
+│  │  │ RAG Service      │  │ MCP Pipeline     │  │ Feedback       │   │  │
+│  │  │ - Retrieval      │  │ - 6 AI Agents    │  │ Service        │   │  │
+│  │  │ - Ranking        │  │ - JSON Output    │  │ - Analysis     │   │  │
+│  │  │ - Streaming      │  │ - Validation     │  │ - Suggestions  │   │  │
+│  │  └──────────────────┘  └──────────────────┘  └────────────────┘   │  │
+│  │                                                                      │  │
+│  │  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐   │  │
+│  │  │ PDF Service      │  │ Document Gen     │  │ Prompt         │   │  │
+│  │  │ - PDF Parsing    │  │ - DOCX Creation  │  │ Templates      │   │  │
+│  │  │ - Text Extract   │  │ - Formatting     │  │ - Role-based   │   │  │
+│  │  └──────────────────┘  └──────────────────┘  └────────────────┘   │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────┬─────────────────────────────────────────────┘
+                                 │
+        ┌────────────────────────┼────────────────────────┬──────────────┐
+        │                        │                        │              │
+┌───────▼──────────┐  ┌──────────▼──────────┐  ┌─────────▼────────┐  ┌──▼──────────┐
+│  PostgreSQL      │  │  Pinecone Cloud    │  │  Qdrant Cloud    │  │ OpenRouter  │
+│  (Metadata DB)   │  │  (Vector Search)   │  │  (Doc Storage)   │  │ (LLM API)   │
+│                  │  │                    │  │                  │  │             │
+│ ┌──────────────┐ │  │ ┌────────────────┐ │  │ ┌──────────────┐ │  │ ┌─────────┐ │
+│ │ Users        │ │  │ │ Embeddings     │ │  │ │ Documents    │ │  │ │Nemotron │ │
+│ │ Sessions     │ │  │ │ 384-dim        │ │  │ │ Chunks       │ │  │ │3 Nano   │ │
+│ │ Messages     │ │  │ │ Cosine Sim     │ │  │ │ Metadata     │ │  │ │30B      │ │
+│ │ Documents    │ │  │ │ Auto-index     │ │  │ │ Auto-collect │ │  │ │         │ │
+│ │ Feedback     │ │  │ │ Serverless     │ │  │ │ Serverless   │ │  │ │Gemma 2  │ │
+│ │ AI Models    │ │  │ │                │ │  │ │              │ │  │ │27B IT   │ │
+│ └──────────────┘ │  │ └────────────────┘ │  │ └──────────────┘ │  │ └─────────┘ │
+└──────────────────┘  └────────────────────┘  └──────────────────┘  └─────────────┘
+```
+
+### Data Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DOCUMENT UPLOAD FLOW                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+User Upload (PDF/DOCX/CSV)
+        │
+        ▼
+┌──────────────────────┐
+│ PDF/DOCX Parser      │  Extract text, tables, metadata
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Text Chunker         │  Split into 3000-char chunks
+│ (400 char overlap)   │  with metadata preservation
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Embedding Generator  │  Convert chunks to 384-dim vectors
+│ (HuggingFace)        │  using sentence-transformers
+└──────────┬───────────┘
+           │
+        ┌──┴──┐
+        │     │
+        ▼     ▼
+    Pinecone  Qdrant
+    (Vector)  (Storage)
+    Index     Collection
+        │     │
+        └──┬──┘
+           │
+           ▼
+    ✓ Document Indexed
+      Ready for Search
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         USER QUERY FLOW (RAG)                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+User Query
+    │
+    ▼
+┌──────────────────────┐
+│ Session Filter       │  Filter documents by session_id
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Query Embedding      │  Convert query to 384-dim vector
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Semantic Search      │  Retrieve top 30 similar chunks
+│ (Pinecone)           │  using cosine similarity
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Priority Weighting   │  Rank by: relevance + priority
+│ & Ranking            │  (High > Medium > Low)
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Context Assembly     │  Build prompt with:
+│                      │  - Query
+│                      │  - Top 30 contexts
+│                      │  - Role-based template
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ LLM Inference        │  Send to OpenRouter
+│ (Nemotron 3 30B)     │  - Timeout: 30 seconds
+│                      │  - Context: 16K tokens
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Token Streaming      │  Stream response to client
+│ (Server-Sent Events) │  token-by-token in real-time
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Store Message        │  Save to PostgreSQL:
+│                      │  - session_id
+│                      │  - user_query
+│                      │  - ai_response
+│                      │  - timestamp
+└──────────┬───────────┘
+           │
+           ▼
+    ✓ Response Complete
+      Ready for Feedback
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    MCP MULTI-AGENT PIPELINE FLOW                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Input Document (PDF/DOCX)
+        │
+        ▼
+┌──────────────────────────────────────────┐
+│ Document Reader Agent                    │
+│ - Parse document structure               │
+│ - Extract sections, tables, metadata     │
+│ - Output: reader_output.json             │
+└──────────┬───────────────────────────────┘
+           │
+        ┌──┴──────────────────────────────────────────┐
+        │                                             │
+        ▼                                             ▼
+┌──────────────────────────┐          ┌──────────────────────────┐
+│ S1: Requirements Agent   │          │ S2: Table Analyzer Agent │
+│ - Extract requirements   │          │ - Analyze table schemas  │
+│ - Identify constraints   │          │ - Detect anomalies       │
+│ - Assign IDs             │          │ - Infer relationships    │
+│ Output: s1_requirements  │          │ Output: s2_table_schemas │
+└──────────┬───────────────┘          └──────────┬───────────────┘
+           │                                     │
+        ┌──┴──────────────────────────────────────┴──┐
+        │                                            │
+        ▼                                            ▼
+┌──────────────────────────┐          ┌──────────────────────────┐
+│ S3: Business Logic Agent │          │ S4: Change Request Agent │
+│ - Identify business rules│          │ - Track version changes  │
+│ - Extract IF/THEN logic  │          │ - Identify scope deltas  │
+│ - Map process flows      │          │ - Reference CRs          │
+│ Output: s3_business_logic│          │ Output: s4_change_requests
+└──────────┬───────────────┘          └──────────┬───────────────┘
+           │                                     │
+        ┌──┴──────────────────────────────────────┴──┐
+        │                                            │
+        ▼                                            ▼
+┌──────────────────────────┐          ┌──────────────────────────┐
+│ S5: Validation Agent     │          │ Master Receiver Agent    │
+│ - Validate consistency   │          │ - Merge all outputs      │
+│ - Check completeness     │          │ - Resolve conflicts      │
+│ - Verify structure       │          │ - Create unified payload │
+│ Output: s5_validation    │          │ Output: unified_payload  │
+└──────────┬───────────────┘          └──────────┬───────────────┘
+           │                                     │
+           └──────────────────┬──────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────────┐
+                    │ 7 JSON Output Files  │
+                    │ - reader_output      │
+                    │ - s1_requirements    │
+                    │ - s2_table_schemas   │
+                    │ - s3_business_logic  │
+                    │ - s4_change_requests │
+                    │ - s5_validation      │
+                    │ - unified_payload    │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ✓ MCP Processing Complete
+                      Ready for Download/Generation
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      FEEDBACK & IMPROVEMENT FLOW                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+User Feedback (Thumbs Up/Down)
+        │
+        ▼
+┌──────────────────────┐
+│ Store Feedback       │  Save to PostgreSQL:
+│                      │  - document_id
+│                      │  - rating (up/down)
+│                      │  - feedback_text
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ AI Analysis          │  Send to LLM:
+│ (Feedback Service)   │  - Analyze feedback
+│                      │  - Generate suggestions
+│                      │  - Identify improvements
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Store Suggestions    │  Save to PostgreSQL:
+│                      │  - ai_improvement_suggestions
+│                      │  - timestamp
+└──────────┬───────────┘
+           │
+           ▼
+    ✓ Feedback Processed
+      Suggestions Available
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ADMIN OPERATIONS FLOW                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Admin Login
+    │
+    ▼
+┌──────────────────────┐
+│ Verify Credentials   │  Check email & password
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Generate JWT Token   │  Create admin token
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Admin Dashboard      │  Access admin features:
+│                      │  - User Management
+│                      │  - Model Management
+└──────────┬───────────┘
+           │
+        ┌──┴──────────────────────────────┐
+        │                                 │
+        ▼                                 ▼
+┌──────────────────────┐      ┌──────────────────────┐
+│ User Management      │      │ Model Management     │
+│ - Create user        │      │ - View models        │
+│ - Edit user          │      │ - Update API keys    │
+│ - Delete user        │      │ - Set default model  │
+│ - Test login         │      │ - Activate/Deactivate
+│ - Assign roles       │      │ - Delete model       │
+└──────────┬───────────┘      └──────────┬───────────┘
+           │                             │
+           ▼                             ▼
+    PostgreSQL Update          PostgreSQL Update
+           │                             │
+           └──────────────┬──────────────┘
+                          │
+                          ▼
+                    ✓ Admin Operation Complete
 ```
 
 ### Data Flow
@@ -345,6 +659,368 @@ Each agent uses Google Gemma 2 27B IT model with:
 3. **Session Management** → Create Session → Store Messages → Filter Documents by Session ID
 4. **MCP Pipeline** → Document Reader → 5 Specialist Agents → Master Receiver → Unified JSON Output
 5. **Feedback Loop** → User Rating → AI Analysis → Improvement Suggestions → Store in PostgreSQL
+
+### Component Interaction Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FRONTEND COMPONENT INTERACTIONS                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              ┌──────────────────┐
+                              │   App Layout     │
+                              │  (Root Layout)   │
+                              └────────┬─────────┘
+                                       │
+                ┌──────────────────────┼──────────────────────┐
+                │                      │                      │
+                ▼                      ▼                      ▼
+        ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+        │ Chat Page    │      │ Admin Page   │      │ Landing Page │
+        └──────┬───────┘      └──────┬───────┘      └──────────────┘
+               │                     │
+        ┌──────┴──────┐       ┌──────┴──────┐
+        │             │       │             │
+        ▼             ▼       ▼             ▼
+    ┌────────┐  ┌──────────┐ ┌────────┐ ┌──────────┐
+    │ChatWin │  │Reference │ │User    │ │AI Model  │
+    │dow     │  │Panel     │ │Mgmt    │ │Mgmt      │
+    └────────┘  └──────────┘ └────────┘ └──────────┘
+        │             │          │          │
+        ▼             ▼          ▼          ▼
+    ┌────────────────────────────────────────────┐
+    │         Zustand Store (useAppStore)        │
+    │  - Current session                         │
+    │  - Messages                                │
+    │  - Documents                               │
+    │  - User info                               │
+    │  - Admin state                             │
+    └────────────────────────────────────────────┘
+        │
+        ▼
+    ┌────────────────────────────────────────────┐
+    │      Axios HTTP Client                     │
+    │  - Interceptors for auth                   │
+    │  - Error handling                          │
+    │  - Request/response transformation         │
+    └────────────────────────────────────────────┘
+        │
+        ▼
+    Backend API
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    BACKEND SERVICE INTERACTIONS                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌──────────────────────────┐
+                    │   FastAPI Application    │
+                    │   (main.py)              │
+                    └────────────┬─────────────┘
+                                 │
+        ┌────────────────────────┼────────────────────────┐
+        │                        │                        │
+        ▼                        ▼                        ▼
+    ┌─────────┐            ┌──────────┐            ┌──────────┐
+    │Auth API │            │Chat API  │            │Admin API │
+    └────┬────┘            └────┬─────┘            └────┬─────┘
+         │                      │                      │
+         ▼                      ▼                      ▼
+    ┌─────────────────────────────────────────────────────────┐
+    │              Service Layer                             │
+    │                                                         │
+    │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐   │
+    │  │ RAG Service  │  │ MCP Pipeline │  │ Feedback   │   │
+    │  │              │  │              │  │ Service    │   │
+    │  │ - Retrieve   │  │ - 6 Agents   │  │            │   │
+    │  │ - Rank       │  │ - Process    │  │ - Analyze  │   │
+    │  │ - Stream     │  │ - Validate   │  │ - Suggest  │   │
+    │  └──────┬───────┘  └──────┬───────┘  └────┬───────┘   │
+    │         │                 │               │            │
+    │  ┌──────┴─────────────────┴───────────────┴──────┐    │
+    │  │                                               │    │
+    │  │  ┌──────────────┐  ┌──────────────────────┐  │    │
+    │  │  │ PDF Service  │  │ Prompt Templates     │  │    │
+    │  │  │              │  │                      │  │    │
+    │  │  │ - Parse      │  │ - BA templates       │  │    │
+    │  │  │ - Extract    │  │ - FBA templates      │  │    │
+    │  │  │ - Chunk      │  │ - QA templates       │  │    │
+    │  │  └──────────────┘  └──────────────────────┘  │    │
+    │  └──────────────────────────────────────────────┘    │
+    └─────────────────────────────────────────────────────────┘
+        │
+        ▼
+    ┌─────────────────────────────────────────────────────────┐
+    │              Data Access Layer (SQLAlchemy)            │
+    │                                                         │
+    │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐   │
+    │  │ User Model   │  │ Session Model│  │ Document   │   │
+    │  │              │  │              │  │ Model      │   │
+    │  │ - id         │  │ - id         │  │            │   │
+    │  │ - email      │  │ - user_id    │  │ - id       │   │
+    │  │ - password   │  │ - title      │  │ - filename │   │
+    │  │ - role       │  │ - role       │  │ - path     │   │
+    │  │ - is_admin   │  │ - created_at │  │ - status   │   │
+    │  └──────────────┘  └──────────────┘  └────────────┘   │
+    │                                                         │
+    │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐   │
+    │  │ Message Model│  │ Feedback     │  │ AI Model   │   │
+    │  │              │  │ Model        │  │ Model      │   │
+    │  │ - id         │  │              │  │            │   │
+    │  │ - session_id │  │ - id         │  │ - id       │   │
+    │  │ - role       │  │ - rating     │  │ - name     │   │
+    │  │ - content    │  │ - feedback   │  │ - provider │   │
+    │  │ - created_at │  │ - suggestions│  │ - api_key  │   │
+    │  └──────────────┘  └──────────────┘  └────────────┘   │
+    └─────────────────────────────────────────────────────────┘
+        │
+        ▼
+    ┌─────────────────────────────────────────────────────────┐
+    │              External Services                          │
+    │                                                         │
+    │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐   │
+    │  │ PostgreSQL   │  │ Pinecone     │  │ Qdrant     │   │
+    │  │              │  │              │  │            │   │
+    │  │ - Metadata   │  │ - Vectors    │  │ - Documents│   │
+    │  │ - Sessions   │  │ - Search     │  │ - Storage  │   │
+    │  │ - Messages   │  │ - Index      │  │ - Retrieve │   │
+    │  └──────────────┘  └──────────────┘  └────────────┘   │
+    │                                                         │
+    │  ┌──────────────────────────────────────────────────┐  │
+    │  │ OpenRouter API                                   │  │
+    │  │ - NVIDIA Nemotron 3 Nano 30B (RAG)              │  │
+    │  │ - Google Gemma 2 27B IT (MCP)                   │  │
+    │  │ - Token streaming                               │  │
+    │  │ - 30-second timeout protection                  │  │
+    │  └──────────────────────────────────────────────────┘  │
+    └─────────────────────────────────────────────────────────┘
+```
+
+### Request/Response Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    TYPICAL USER QUERY FLOW                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+User Types Query in Chat
+        │
+        ▼
+Frontend: ChatWindow Component
+        │
+        ├─ Validate input
+        ├─ Add to local state
+        ├─ Display in UI
+        │
+        ▼
+Frontend: Axios HTTP Client
+        │
+        ├─ Add Authorization header (JWT token)
+        ├─ POST /api/chat/query/stream
+        ├─ Include: session_id, query, role, task_type
+        │
+        ▼
+Backend: Chat API Router
+        │
+        ├─ Verify JWT token
+        ├─ Check user permissions
+        ├─ Validate session ownership
+        │
+        ▼
+Backend: RAG Service
+        │
+        ├─ Filter documents by session_id
+        ├─ Convert query to embedding (384-dim)
+        ├─ Search Pinecone (top 30 results)
+        ├─ Rank by relevance + priority
+        ├─ Assemble context window
+        │
+        ▼
+Backend: Prompt Templates
+        │
+        ├─ Select template by role (BA/FBA/QA)
+        ├─ Format prompt with context
+        ├─ Include task-specific instructions
+        │
+        ▼
+Backend: OpenRouter API Call
+        │
+        ├─ Model: NVIDIA Nemotron 3 Nano 30B
+        ├─ Context: 16K tokens
+        ├─ Temperature: 0.7
+        ├─ Max tokens: 2000
+        ├─ Timeout: 30 seconds
+        │
+        ▼
+Backend: Token Streaming
+        │
+        ├─ Receive tokens from LLM
+        ├─ Stream via Server-Sent Events (SSE)
+        ├─ Each token sent immediately
+        │
+        ▼
+Frontend: SSE Listener
+        │
+        ├─ Receive token stream
+        ├─ Append to response in real-time
+        ├─ Update UI incrementally
+        │
+        ▼
+Backend: Message Storage
+        │
+        ├─ After streaming complete
+        ├─ Save to PostgreSQL:
+        │  - session_id
+        │  - user_query
+        │  - ai_response
+        │  - timestamp
+        │
+        ▼
+Frontend: Display Complete
+        │
+        ├─ Show full response
+        ├─ Enable feedback buttons
+        ├─ Ready for next query
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    DOCUMENT UPLOAD FLOW                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+User Selects File (PDF/DOCX/CSV)
+        │
+        ▼
+Frontend: Document Upload Component
+        │
+        ├─ Validate file type
+        ├─ Check file size
+        ├─ Show progress indicator
+        │
+        ▼
+Frontend: FormData Preparation
+        │
+        ├─ Create FormData object
+        ├─ Append file
+        ├─ Append session_id
+        ├─ POST /api/documents/upload
+        │
+        ▼
+Backend: Document API Router
+        │
+        ├─ Verify JWT token
+        ├─ Validate session ownership
+        ├─ Check file type
+        │
+        ▼
+Backend: PDF Service
+        │
+        ├─ Parse file (PDF/DOCX/CSV)
+        ├─ Extract text and metadata
+        ├─ Save to uploaded_docs/
+        │
+        ▼
+Backend: Text Chunker
+        │
+        ├─ Split into 3000-char chunks
+        ├─ Add 400-char overlap
+        ├─ Preserve metadata
+        │
+        ▼
+Backend: Embedding Generator
+        │
+        ├─ Load HuggingFace model
+        ├─ Convert chunks to 384-dim vectors
+        ├─ Batch process for efficiency
+        │
+        ▼
+Backend: Vector Store Upload
+        │
+        ├─ Upload to Pinecone:
+        │  - Vector embeddings
+        │  - Chunk text
+        │  - Metadata (session_id, priority)
+        │
+        ├─ Upload to Qdrant:
+        │  - Document chunks
+        │  - Full metadata
+        │  - Searchable fields
+        │
+        ▼
+Backend: Database Update
+        │
+        ├─ Save to PostgreSQL:
+        │  - Document record
+        │  - Status: "indexed"
+        │  - Upload timestamp
+        │
+        ▼
+Frontend: Upload Complete
+        │
+        ├─ Show success message
+        ├─ Add to documents list
+        ├─ Ready for queries
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ADMIN USER CREATION FLOW                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Admin Fills Create User Form
+        │
+        ▼
+Frontend: Admin Page Component
+        │
+        ├─ Validate email format
+        ├─ Validate password strength
+        ├─ Verify role selection
+        │
+        ▼
+Frontend: Axios HTTP Client
+        │
+        ├─ Add Authorization header (admin token)
+        ├─ POST /api/admin/users
+        ├─ Include: email, username, password, roles
+        │
+        ▼
+Backend: Admin API Router
+        │
+        ├─ Verify admin JWT token
+        ├─ Check admin permissions
+        ├─ Validate input data
+        │
+        ▼
+Backend: User Service
+        │
+        ├─ Check email uniqueness
+        ├─ Hash password (bcrypt)
+        ├─ Validate roles
+        │
+        ▼
+Backend: Database Insert
+        │
+        ├─ Create User record:
+        │  - id (UUID)
+        │  - email
+        │  - hashed_password
+        │  - roles (array)
+        │  - is_admin (false)
+        │  - created_at
+        │
+        ▼
+Backend: Response
+        │
+        ├─ Return success message
+        ├─ Include user_id
+        ├─ Include created_at
+        │
+        ▼
+Frontend: Update UI
+        │
+        ├─ Show success notification
+        ├─ Refresh users list
+        ├─ Clear form
+        ├─ Ready for next user creation
+```
 
 ---
 
@@ -384,6 +1060,169 @@ Each agent uses Google Gemma 2 27B IT model with:
 - **Architecture**: 100% cloud-native, zero local database overhead
 - **Timeout Protection**: 30-second inference timeout with graceful error handling
 
+### Database Schema Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    POSTGRESQL DATABASE SCHEMA                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────┐
+│      users           │
+├──────────────────────┤
+│ id (UUID) PK         │
+│ email (VARCHAR)      │◄─────────────────────────────────┐
+│ username (VARCHAR)   │                                  │
+│ hashed_password      │                                  │
+│ roles (ARRAY)        │                                  │
+│ is_admin (BOOLEAN)   │                                  │
+│ created_at (TIMESTAMP)                                  │
+│ updated_at (TIMESTAMP)                                  │
+└──────────────────────┘                                  │
+         │                                                │
+         │ 1:N                                            │
+         │                                                │
+         ▼                                                │
+┌──────────────────────┐                                  │
+│   chat_sessions      │                                  │
+├──────────────────────┤                                  │
+│ id (UUID) PK         │                                  │
+│ user_id (UUID) FK ───┼──────────────────────────────────┘
+│ title (VARCHAR)      │
+│ role (VARCHAR)       │
+│ created_at (TIMESTAMP)
+│ updated_at (TIMESTAMP)
+└──────────────────────┘
+         │
+         │ 1:N
+         │
+         ▼
+┌──────────────────────┐
+│   chat_messages      │
+├──────────────────────┤
+│ id (UUID) PK         │
+│ session_id (UUID) FK │
+│ role (VARCHAR)       │
+│ content (TEXT)       │
+│ created_at (TIMESTAMP)
+└──────────────────────┘
+
+
+┌──────────────────────┐
+│    documents         │
+├──────────────────────┤
+│ id (UUID) PK         │
+│ session_id (UUID) FK ├──────────────────┐
+│ user_id (UUID) FK    │                  │
+│ filename (VARCHAR)   │                  │
+│ file_path (VARCHAR)  │                  │
+│ file_size (INTEGER)  │                  │
+│ file_type (VARCHAR)  │                  │
+│ status (VARCHAR)     │                  │
+│ upload_date (TIMESTAMP)                 │
+└──────────────────────┘                  │
+         │                                │
+         │ 1:N                            │
+         │                                │
+         ▼                                │
+┌──────────────────────┐                  │
+│ document_feedback    │                  │
+├──────────────────────┤                  │
+│ id (UUID) PK         │                  │
+│ document_id (UUID) FK├──────────────────┘
+│ user_id (UUID) FK    │
+│ rating (VARCHAR)     │
+│ feedback_text (TEXT) │
+│ ai_suggestions (TEXT)│
+│ created_at (TIMESTAMP)
+└──────────────────────┘
+
+
+┌──────────────────────┐
+│    ai_models         │
+├──────────────────────┤
+│ id (UUID) PK         │
+│ name (VARCHAR)       │
+│ provider (VARCHAR)   │
+│ model_id (VARCHAR)   │
+│ api_key (VARCHAR)    │
+│ is_default (BOOLEAN) │
+│ is_active (BOOLEAN)  │
+│ description (TEXT)   │
+│ created_at (TIMESTAMP)
+│ updated_at (TIMESTAMP)
+└──────────────────────┘
+
+
+RELATIONSHIPS:
+- users (1) ──────────────────────────── (N) chat_sessions
+- users (1) ──────────────────────────── (N) documents
+- users (1) ──────────────────────────── (N) document_feedback
+- chat_sessions (1) ──────────────────── (N) chat_messages
+- chat_sessions (1) ──────────────────── (N) documents
+- documents (1) ──────────────────────── (N) document_feedback
+
+INDEXES:
+- users.email (UNIQUE)
+- chat_sessions.user_id
+- chat_messages.session_id
+- documents.session_id
+- documents.user_id
+- document_feedback.document_id
+- document_feedback.user_id
+- ai_models.is_default
+- ai_models.is_active
+```
+
+### Vector Store Schema (Pinecone)
+
+```
+Index: sdlc-copilot
+Dimension: 384 (all-MiniLM-L6-v2)
+Metric: cosine
+Spec: Serverless (AWS us-east-1)
+
+Vector Record Structure:
+{
+  "id": "chunk-uuid",
+  "values": [0.123, 0.456, ...],  // 384-dimensional embedding
+  "metadata": {
+    "session_id": "session-uuid",
+    "document_id": "doc-uuid",
+    "chunk_index": 0,
+    "text": "chunk content...",
+    "priority": "high|medium|low",
+    "file_type": "pdf|docx|csv",
+    "created_at": "2026-04-15T10:30:00"
+  }
+}
+```
+
+### Document Store Schema (Qdrant)
+
+```
+Collection: sdlc_documents
+Vector Size: 384
+Distance: Cosine
+
+Point Structure:
+{
+  "id": "chunk-uuid",
+  "vector": [0.123, 0.456, ...],  // 384-dimensional embedding
+  "payload": {
+    "session_id": "session-uuid",
+    "document_id": "doc-uuid",
+    "filename": "requirements.pdf",
+    "chunk_index": 0,
+    "text": "chunk content...",
+    "priority": "high|medium|low",
+    "file_type": "pdf|docx|csv",
+    "upload_date": "2026-04-15T10:30:00",
+    "user_id": "user-uuid"
+  }
+}
+```
+
 ---
 
 ## Project Structure
@@ -394,6 +1233,7 @@ project/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── auth.py              # JWT authentication (login, user info)
+│   │   │   ├── admin.py             # Admin operations (user & model management)
 │   │   │   ├── chat.py              # Chat sessions, messages, streaming
 │   │   │   ├── documents.py         # Upload, list, delete, feedback
 │   │   │   └── mcp.py               # MCP pipeline processing
@@ -424,8 +1264,12 @@ project/
 │   │   │   ├── page.tsx             # Landing page
 │   │   │   ├── layout.tsx           # Root layout with metadata
 │   │   │   ├── globals.css          # Global styles
-│   │   │   └── chat/
-│   │   │       └── page.tsx         # Main chat interface
+│   │   │   ├── chat/
+│   │   │   │   └── page.tsx         # Main chat interface
+│   │   │   └── admin/
+│   │   │       ├── page.tsx         # Admin dashboard (user management)
+│   │   │       └── models/
+│   │   │           └── page.tsx     # AI model management
 │   │   ├── components/
 │   │   │   ├── ChatWindow.tsx       # Chat UI with streaming
 │   │   │   ├── Sidebar.tsx          # Session management sidebar
@@ -447,11 +1291,110 @@ project/
 
 ---
 
+## Admin Dashboard
+
+### Overview
+
+The Admin Dashboard provides comprehensive system management capabilities for administrators. Access it at `http://localhost:3000/admin`.
+
+### Admin Features
+
+#### 1. User Management
+- **Create Users**: Add new users with custom roles and credentials
+- **Edit Users**: Update user information, passwords, and role assignments
+- **Delete Users**: Remove users from the system (cannot delete admin users)
+- **Test Login**: Verify user credentials directly from the admin panel
+- **Role Assignment**: Assign multiple roles to users (BA, FBA, QA)
+
+#### 2. AI Model Management
+- **View Models**: See all configured AI models and their status
+- **Update API Keys**: Securely update API keys for each model
+- **Set Default Model**: Configure which model is used for system operations
+- **Activate/Deactivate**: Enable or disable models without deletion
+- **Model Details**: View provider, model ID, and API key preview
+
+### Admin Credentials
+
+| Email | Password | Role |
+|-------|----------|------|
+| admin1@hsbc.com | admin123 | System Administrator |
+
+### Admin Workflows
+
+#### Creating a New User
+
+1. Navigate to `/admin`
+2. Login with admin credentials
+3. Click "Create New User"
+4. Fill in email, username, and password
+5. Select one or more roles (BA, FBA, QA)
+6. Click "Create User"
+
+#### Managing AI Models
+
+1. From Admin Dashboard, click "AI Model Management"
+2. View all configured models
+3. To update an API key:
+   - Click "Edit API Key" on the model
+   - Enter the new API key
+   - Click "Save"
+4. To delete a model:
+   - Click "Delete" (cannot delete default model)
+   - Confirm deletion
+
+#### Testing User Login
+
+1. In the Users table, click "Test Login" on any user
+2. Enter the user's password when prompted
+3. System will verify credentials and show success/failure
+
+### Admin API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/login` | POST | Admin authentication |
+| `/api/admin/users` | GET | List all users |
+| `/api/admin/users` | POST | Create new user |
+| `/api/admin/users/{user_id}` | PUT | Update user |
+| `/api/admin/users/{user_id}` | DELETE | Delete user |
+| `/api/admin/models/` | GET | List AI models |
+| `/api/admin/models/{model_id}` | PUT | Update model API key |
+| `/api/admin/models/{model_id}` | DELETE | Delete model |
+
+### Security Notes
+
+- Admin credentials should be changed immediately after first login
+- API keys are encrypted and only the last 4 characters are displayed
+- Admin operations are logged for audit purposes
+- Only admin users can access the admin dashboard
+- Default models cannot be deleted for system stability
+
+---
+
 ## API Documentation
 
 ### Authentication Endpoints
 
-#### Login
+#### Admin Login
+```http
+POST /api/admin/login
+Content-Type: application/json
+
+{
+  "email": "admin1@hsbc.com",
+  "password": "admin123"
+}
+
+Response:
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "email": "admin1@hsbc.com",
+  "expires_in": 30
+}
+```
+
+#### User Login
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -633,6 +1576,7 @@ The project uses JWT (JSON Web Tokens) for secure API authentication.
 | ba@xyz.com | password123 | Business Analyst (BA) |
 | fba@xyz.com | password123 | Functional BA (FBA) |
 | qa@xyz.com | password123 | QA / Tester |
+| admin1@hsbc.com | admin123 | System Administrator |
 
 #### Token Structure
 
@@ -1051,6 +1995,8 @@ Developed by the SDLC Automation Team
 
 **Completed Features:**
 - JWT Authentication with role-based access control
+- Admin Dashboard with user management
+- AI Model Management interface
 - PostgreSQL database (cloud-hosted on Render/Neon)
 - Pinecone vector search (serverless, auto-index creation)
 - Qdrant document store (cloud-hosted, auto-collection creation)
@@ -1064,6 +2010,7 @@ Developed by the SDLC Automation Team
 - Priority-based document retrieval
 - Next.js 16 + React 19 frontend
 - Responsive UI with Tailwind CSS
+- Admin user and model management APIs
 
 **In Progress:**
 - DOCX generation from MCP unified payload
@@ -1078,6 +2025,14 @@ Developed by the SDLC Automation Team
 ## Recent Updates & Improvements
 
 ### April 2026 - v2.1.0 (Current Release)
+
+#### Admin Dashboard & User Management
+- **Admin Portal**: Comprehensive admin dashboard at `/admin`
+- **User Management**: Create, edit, delete, and test user accounts
+- **Role Assignment**: Assign multiple roles to users (BA, FBA, QA)
+- **AI Model Management**: View, update, and manage AI models and API keys
+- **Admin Authentication**: Secure admin login with separate credentials
+- **User Testing**: Test user login credentials directly from admin panel
 
 #### MCP Multi-Agent Pipeline
 - **Integrated 6 specialized AI agents** for comprehensive document processing
